@@ -1,0 +1,6 @@
+# python/uv artifacts
+.venv/
+__pycache__/
+*.pyc
+
+data/output/
