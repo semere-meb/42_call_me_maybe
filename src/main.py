@@ -49,19 +49,22 @@ Available functions:
 Output JSON with keys: name, parameters.
 
 User request: "$request"
+
+Answer: 
 """)
 input_list = json.loads(input_file.read_text(encoding="utf-8"))
-prompt = prompt_template.substitute(request=input_list[0]["prompt"])
 model = Small_LLM_Model()
-input_ids = model.encode(prompt)[0].tolist()
-logits = model.get_logits_from_input_ids(input_ids)
 
-response_token_ids = []
-max_new_tokens = 50
-for _ in range(max_new_tokens):
+for req in input_list[:1]:
+    prompt = prompt_template.substitute(request=req["prompt"])
+    input_ids = model.encode(prompt)[0].tolist()
     logits = model.get_logits_from_input_ids(input_ids)
-    next_token_id = int(torch.tensor(logits).argmax())
-    input_ids.append(next_token_id)
-    response_token_ids.append(next_token_id)
-text = model.decode(response_token_ids)
-print(text)
+
+    response_token_ids = []
+    for _ in range(40):
+        logits = model.get_logits_from_input_ids(input_ids)
+        next_token_id = int(torch.tensor(logits).argmax())
+        input_ids.append(next_token_id)
+        response_token_ids.append(next_token_id)
+    text = model.decode(response_token_ids)
+    print(text)
