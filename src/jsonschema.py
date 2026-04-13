@@ -1,4 +1,3 @@
-import re
 import enum
 
 from .utils import patterns
@@ -50,7 +49,7 @@ class JSONSchema:
             States.SEP_DONE: {
                 "valid_tokens": [
                     patterns["str"],
-                    patterns["number"],
+                    patterns["nbr"],
                     patterns["null"],
                     patterns["bool"],
                     patterns["square_open"],
@@ -58,7 +57,7 @@ class JSONSchema:
                 ],
                 "fn": lambda pattern: {
                     patterns["str"]: States.VALUE_DONE,
-                    patterns["number"]: States.VALUE_DONE,
+                    patterns["nbr"]: States.VALUE_DONE,
                     patterns["null"]: States.VALUE_DONE,
                     patterns["bool"]: States.VALUE_DONE,
                     patterns["square_open"]: States.ARRAY_OPEN,
@@ -76,7 +75,7 @@ class JSONSchema:
             States.ARRAY_OPEN: {
                 "valid_tokens": [
                     patterns["str"],
-                    patterns["number"],
+                    patterns["nbr"],
                     patterns["null"],
                     patterns["bool"],
                     patterns["square_close"],
@@ -85,7 +84,7 @@ class JSONSchema:
                 ],
                 "fn": lambda pattern: {
                     patterns["str"]: States.PREV_VAL_DONE,
-                    patterns["number"]: States.PREV_VAL_DONE,
+                    patterns["nbr"]: States.PREV_VAL_DONE,
                     patterns["null"]: States.PREV_VAL_DONE,
                     patterns["bool"]: States.PREV_VAL_DONE,
                     patterns["square_close"]: States.VALUE_DONE,
@@ -95,20 +94,15 @@ class JSONSchema:
             },
         }
 
-    def is_valid(self, token):
-        return any(
-            pattern.match(token) for pattern in self.transitions[self.state]
-        )
+    def ingest(self, candidates):
+        validators = self.transitions[self.state]["valid_tokens"]
+        next_state_fn = self.transitions[self.state]["fn"]
 
-    def get_next_state(self, token):
-        return self.transitions[self.state]["fn"](token)
-
-    def update_stack(self, token):
-        if patterns["curly_open"].match(token) or patterns[
-            "square_close"
-        ].match(token):
-            self.stack += 1
-        elif patterns["curly_close"].match(token) or patterns[
-            "sqaure_close"
-        ].match(token):
-            self.stack -= 1
+        for token_text, token_id, prob in candidates:
+            for validator in validators:
+                if validator.match(token_text):
+                    # print(f"token: {repr(token_text)}, validator: {validator}")
+                    self.state = next_state_fn(validator)
+                    # TODO: handle updating the stack
+                    # print(self.state)
+                    return token_id
