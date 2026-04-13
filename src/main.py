@@ -74,7 +74,7 @@ def main():
         # text = model.decode(response_token_ids)
         # print(text)
 
-        for _ in range(4):
+        for _ in range(10):
             # while schema.state != States.VALID_JSON:
             logit_tensor = torch.tensor(logits)
             topk_values, topk_indices = torch.topk(logit_tensor, 1000)
@@ -93,10 +93,12 @@ def main():
             #     return
             # print("valid token id:", valid_token_id)
 
+            print(repr(model.decode(valid_token_id)), schema.state)
+
             input_ids.append(valid_token_id)
             response_token_ids.append(valid_token_id)
 
-            # print("=" * 100)
+            print("=" * 100)
 
-        response = model.decode(response_token_ids)
-        print(response)
+        # response = model.decode(response_token_ids)
+        # print(response)
