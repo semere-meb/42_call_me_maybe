@@ -1,4 +1,3 @@
-from .jsonschema import JSONSchema, States
 import json
 import sys
 from argparse import ArgumentParser
@@ -8,6 +7,8 @@ from string import Template
 import torch
 
 from llm_sdk import Small_LLM_Model
+
+from .jsonschema import JSONSchema, States
 
 
 def parse_args():
@@ -60,7 +61,6 @@ def main():
     for req in input_list[:1]:
         prompt = prompt_template.substitute(request=req["prompt"])
         input_ids = model.encode(prompt)[0].tolist()
-        logits = model.get_logits_from_input_ids(input_ids)
 
         schema = JSONSchema()
         response_token_ids = []
@@ -74,8 +74,9 @@ def main():
         # text = model.decode(response_token_ids)
         # print(text)
 
-        for _ in range(10):
-            # while schema.state != States.VALID_JSON:
+        # for _ in range(20):
+        while schema.state != States.VALID_JSON:
+            logits = model.get_logits_from_input_ids(input_ids)
             logit_tensor = torch.tensor(logits)
             topk_values, topk_indices = torch.topk(logit_tensor, 1000)
             probs = torch.softmax(topk_values, dim=0).tolist()
@@ -98,7 +99,7 @@ def main():
             input_ids.append(valid_token_id)
             response_token_ids.append(valid_token_id)
 
-            print("=" * 100)
+            print("=" * 50)
 
-        # response = model.decode(response_token_ids)
-        # print(response)
+        response = model.decode(response_token_ids)
+        print(response)

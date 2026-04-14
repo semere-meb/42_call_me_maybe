@@ -106,10 +106,12 @@ class JSONSchema:
                 "valid_tokens": [
                     patterns["space"],
                     patterns["curly_close"],
+                    patterns["comma"],
                 ],
                 "fn": lambda pattern: {
                     patterns["space"]: States.VALUE_DONE,
                     patterns["curly_close"]: States.VALID_JSON,
+                    patterns["comma"]: States.OBJECT_OPEN,
                 }.get(pattern, "unknown"),
             },
             States.ARRAY_OPEN: {
@@ -139,7 +141,7 @@ class JSONSchema:
                 ],
                 "fn": lambda pattern: {
                     patterns["space"]: States.PREV_VAL_DONE,
-                    patterns["comman"]: States.ARRAY_OPEN,
+                    patterns["comma"]: States.ARRAY_OPEN,
                 }.get(pattern, "unknown"),
             },
             States.IN_ARR_STR: {
