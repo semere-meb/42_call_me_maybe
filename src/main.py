@@ -58,24 +58,24 @@ def main():
     input_list = json.loads(input_file.read_text(encoding="utf-8"))
     model = Small_LLM_Model()
 
-    for req in input_list[:1]:
+    result = []
+    for req in input_list[5:6]:
         prompt = prompt_template.substitute(request=req["prompt"])
         input_ids = model.encode(prompt)[0].tolist()
 
-        schema = JSONSchema()
-        response_token_ids = []
-        # for _ in range(40):
+        # response_token_ids = []
+        # for _ in range(30):
         #     logits = model.get_logits_from_input_ids(input_ids)
         #     next_token_id = int(torch.tensor(logits).argmax())
         #     input_ids.append(next_token_id)
         #     response_token_ids.append(next_token_id)
-        # for token_id in response_token_ids:
-        #     print(repr(model.decode(token_id)))
-        # text = model.decode(response_token_ids)
-        # print(text)
+        #     print(repr(model.decode([next_token_id])))
+        # print(model.decode(response_token_ids))
 
-        # for _ in range(20):
-        while schema.state != States.VALID_JSON:
+        schema = JSONSchema()
+        response_token_ids = []
+
+        while schema.state != States.VALID_STATE:
             logits = model.get_logits_from_input_ids(input_ids)
             logit_tensor = torch.tensor(logits)
             topk_values, topk_indices = torch.topk(logit_tensor, 1000)
@@ -84,22 +84,14 @@ def main():
             tokens = [model.decode([token_id]) for token_id in token_ids]
 
             candidates = zip(tokens, token_ids, probs)
-            # for candidate in candidates:
-            #     print(
-            #         f"token: {repr(candidate[0])}, token_id: {candidate[1]}, prob: {candidate[2]}"
-            #     )
             valid_token_id = schema.ingest(candidates)
-            # if valid_token_id is None:
-            #     # TODO: handle None; increase k in topk or span over the entire vocab
-            #     return
-            # print("valid token id:", valid_token_id)
-
-            print(repr(model.decode(valid_token_id)), schema.state)
 
             input_ids.append(valid_token_id)
             response_token_ids.append(valid_token_id)
-
+            print(repr(model.decode([valid_token_id])), schema.state, schema.stack)
             print("=" * 50)
 
         response = model.decode(response_token_ids)
+        result.append(response)
         print(response)
+    # json.dump(result, output_file)

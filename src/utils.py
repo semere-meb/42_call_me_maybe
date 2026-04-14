@@ -12,6 +12,7 @@ patterns = {
     "colon": re.compile(r"^\s*:\s*$"),
     "comma": re.compile(r"^\s*,\s*$"),
     "space": re.compile(r"^\s+$"),
-    "word": re.compile(r"^\w+$"),
+    "word": re.compile(r"^[\w*'*']+$"),
     "quote": re.compile(r'^"$'),
+    "quote_colon": re.compile(r'^\s*" *: *$'),
 }
