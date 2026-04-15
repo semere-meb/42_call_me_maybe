@@ -59,18 +59,9 @@ def main():
     model = Small_LLM_Model()
 
     result = []
-    for req in input_list[5:6]:
+    for req in input_list[6:7]:
         prompt = prompt_template.substitute(request=req["prompt"])
         input_ids = model.encode(prompt)[0].tolist()
-
-        # response_token_ids = []
-        # for _ in range(30):
-        #     logits = model.get_logits_from_input_ids(input_ids)
-        #     next_token_id = int(torch.tensor(logits).argmax())
-        #     input_ids.append(next_token_id)
-        #     response_token_ids.append(next_token_id)
-        #     print(repr(model.decode([next_token_id])))
-        # print(model.decode(response_token_ids))
 
         schema = JSONSchema()
         response_token_ids = []
@@ -88,8 +79,8 @@ def main():
 
             input_ids.append(valid_token_id)
             response_token_ids.append(valid_token_id)
-            print(repr(model.decode([valid_token_id])), schema.state, schema.stack)
-            print("=" * 50)
+            # print(repr(model.decode([valid_token_id])), schema.state, schema.stack)
+            # print("=" * 50)
 
         response = model.decode(response_token_ids)
         result.append(response)

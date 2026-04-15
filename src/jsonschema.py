@@ -96,10 +96,12 @@ class JSONSchema:
             States.IN_OBJ_STR: {
                 "valid_tokens": [
                     patterns["word"],
+                    patterns["quote_comma"],
                     patterns["quote"],
                     patterns["space"],
                 ],
                 "fn": lambda pattern: {
+                    patterns["quote_comma"]: States.OBJECT_OPEN,
                     patterns["word"]: States.IN_OBJ_STR,
                     patterns["quote"]: States.VALUE_DONE,
                     patterns["space"]: States.IN_OBJ_STR,
