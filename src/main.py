@@ -79,10 +79,10 @@ def main():
 
             input_ids.append(valid_token_id)
             response_token_ids.append(valid_token_id)
-            # print(repr(model.decode([valid_token_id])), schema.state, schema.stack)
-            # print("=" * 50)
+            print(repr(model.decode([valid_token_id])), schema.state, schema.stack)
 
-        response = model.decode(response_token_ids)
-        result.append(response)
-        print(response)
+            response = model.decode(response_token_ids)
+            result.append(response)
+            print(response)
+            print("=" * 50)
     # json.dump(result, output_file)

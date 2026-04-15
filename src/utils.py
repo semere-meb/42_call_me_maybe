@@ -2,9 +2,10 @@ import re
 
 patterns = {
     "str": re.compile(r'^\s*".*"\s*$'),
-    "nbr": re.compile(r"^\s*-?\d+(\.\w+)?\s*$"),
-    "bool": re.compile(r"^\s*true\s*$|^\s*false\s*$"),
-    "null": re.compile(r"^\s*null\s*$"),
+    "nbr": re.compile(r"\d+"),
+    "dot": re.compile(r"^\.$"),
+    "sign": re.compile(r"^\s*[-,\+]\ws*$"),
+    "literal": re.compile(r"^\s*true\s*$|^\s*false\s*$|^\s*null\s*$"),
     "curly_open": re.compile(r"^\s*{\s*$"),
     "curly_close": re.compile(r"^\s*}\s*$"),
     "square_open": re.compile(r"^\s*\[\s*$"),
