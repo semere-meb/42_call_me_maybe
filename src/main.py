@@ -59,7 +59,7 @@ def main():
     model = Small_LLM_Model()
 
     result = []
-    for req in input_list[6:7]:
+    for req in input_list[10:]:
         prompt = prompt_template.substitute(request=req["prompt"])
         input_ids = model.encode(prompt)[0].tolist()
 
@@ -79,10 +79,10 @@ def main():
 
             input_ids.append(valid_token_id)
             response_token_ids.append(valid_token_id)
-            print(repr(model.decode([valid_token_id])), schema.state, schema.stack)
+            # print(repr(model.decode([valid_token_id])), schema.state, schema.stack)
+            # print("=" * 50)
 
-            response = model.decode(response_token_ids)
-            result.append(response)
-            print(response)
-            print("=" * 50)
+        response = model.decode(response_token_ids)
+        result.append(response)
+        print(response)
     # json.dump(result, output_file)
