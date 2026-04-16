@@ -243,11 +243,12 @@ class JSONSchema:
             },
         }
 
-    def ingest(self, candidates):
+    def ingest(self, id_rank, id_to_token):
         validators = self.transitions[self.state]["valid_tokens"]
         next_state_fn = self.transitions[self.state]["fn"]
 
-        for token_text, token_id, prob in candidates:
+        for token_id in id_rank:
+            token_text = id_to_token[int(token_id)]
             for validator in validators:
                 if validator.match(token_text):
                     next_state = next_state_fn(validator)
@@ -263,4 +264,4 @@ class JSONSchema:
                         next_state = States.VALID_STATE
 
                     self.state = next_state
-                    return token_id
+                    return token_id, token_text

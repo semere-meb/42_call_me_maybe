@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from string import Template
 
-import torch
+import numpy
 
 from llm_sdk import Small_LLM_Model
 
@@ -57,32 +57,23 @@ def main():
     """)
     input_list = json.loads(input_file.read_text(encoding="utf-8"))
     model = Small_LLM_Model()
+    vocab = json.loads(open(model.get_path_to_vocab_file()).read())
+    id_to_token = {id: model.decode([id]) for _, id in vocab.items()}
 
-    result = []
-    for req in input_list[10:]:
+    for req in input_list:
         prompt = prompt_template.substitute(request=req["prompt"])
         input_ids = model.encode(prompt)[0].tolist()
 
         schema = JSONSchema()
-        response_token_ids = []
+        response_tokens = []
 
         while schema.state != States.VALID_STATE:
             logits = model.get_logits_from_input_ids(input_ids)
-            logit_tensor = torch.tensor(logits)
-            topk_values, topk_indices = torch.topk(logit_tensor, 1000)
-            probs = torch.softmax(topk_values, dim=0).tolist()
-            token_ids = topk_indices.tolist()
-            tokens = [model.decode([token_id]) for token_id in token_ids]
+            rank = numpy.array(logits).argsort()[::-1]
 
-            candidates = zip(tokens, token_ids, probs)
-            valid_token_id = schema.ingest(candidates)
+            (valid_token_id, valid_token) = schema.ingest(rank, id_to_token)
 
             input_ids.append(valid_token_id)
-            response_token_ids.append(valid_token_id)
-            # print(repr(model.decode([valid_token_id])), schema.state, schema.stack)
-            # print("=" * 50)
+            response_tokens.append(valid_token)
 
-        response = model.decode(response_token_ids)
-        result.append(response)
-        print(response)
-    # json.dump(result, output_file)
+        print("".join(response_tokens))
