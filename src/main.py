@@ -60,7 +60,7 @@ def main():
     vocab = json.loads(open(model.get_path_to_vocab_file()).read())
     id_to_token = {id: model.decode([id]) for _, id in vocab.items()}
 
-    for req in input_list:
+    for req in input_list[8:9]:
         prompt = prompt_template.substitute(request=req["prompt"])
         input_ids = model.encode(prompt)[0].tolist()
 
@@ -72,6 +72,8 @@ def main():
             rank = numpy.array(logits).argsort()[::-1]
 
             (valid_token_id, valid_token) = schema.ingest(rank, id_to_token)
+            print(valid_token, schema.state, schema.stack)
+            print("=" * 50)
 
             input_ids.append(valid_token_id)
             response_tokens.append(valid_token)

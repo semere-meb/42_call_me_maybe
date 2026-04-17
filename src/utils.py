@@ -1,7 +1,7 @@
 import re
 
 patterns = {
-    "str": re.compile(r'^\s*".*"\s*$'),
+    "str": re.compile(r'^\s*[^""]*\s*$'),
     "nbr": re.compile(r"\d+"),
     "dot": re.compile(r"^\.$"),
     "sign": re.compile(r"^\s*[-,\+]\ws*$"),

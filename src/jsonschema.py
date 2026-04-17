@@ -95,15 +95,15 @@ class JSONSchema:
             },
             States.IN_OBJ_STR: {
                 "valid_tokens": [
-                    patterns["word"],
-                    patterns["quote_comma"],
                     patterns["quote"],
+                    patterns["quote_comma"],
+                    patterns["str"],
                     patterns["space"],
                 ],
                 "fn": lambda pattern: {
-                    patterns["quote_comma"]: States.OBJECT_OPEN,
-                    patterns["word"]: States.IN_OBJ_STR,
                     patterns["quote"]: States.VALUE_DONE,
+                    patterns["quote_comma"]: States.OBJECT_OPEN,
+                    patterns["str"]: States.IN_OBJ_STR,
                     patterns["space"]: States.IN_OBJ_STR,
                 }.get(pattern, "unknown"),
             },
@@ -161,14 +161,14 @@ class JSONSchema:
             },
             States.IN_ARR_STR: {
                 "valid_tokens": [
-                    patterns["word"],
                     patterns["quote"],
                     patterns["space"],
+                    patterns["str"],
                 ],
                 "fn": lambda pattern: {
-                    patterns["word"]: States.IN_ARR_STR,
                     patterns["quote"]: States.PREV_VAL_DONE,
                     patterns["space"]: States.IN_ARR_STR,
+                    patterns["str"]: States.IN_ARR_STR,
                 }.get(pattern, "unknown"),
             },
             States.ARR_NBR_OPENED: {
