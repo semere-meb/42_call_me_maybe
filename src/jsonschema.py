@@ -243,7 +243,7 @@ class JSONSchema:
             },
         }
 
-    def ingest(self, id_rank, id_to_token):
+    def next_token(self, id_rank, id_to_token):
         validators = self.transitions[self.state]["valid_tokens"]
         next_state_fn = self.transitions[self.state]["fn"]
 
