@@ -33,7 +33,7 @@ def get_files(args: Namespace) -> list[Path]:
         if not file.is_file():
             raise AppError(
                 f"{'input' if file is input_path else 'definition'} file"
-                + " {file} not found"
+                + f" {file} not found"
             )
 
     # reports early if the path can't be created
@@ -79,10 +79,16 @@ def get_prompts(input_path: Path) -> list[Prompt]:
                     raise AppError(f"Malformed input: {prompt_dict}") from e
                 else:
                     prompts.append(prompt)
+            if not prompts:
+                raise AppError("No inputs were provided")
             return prompts
 
-    except (JSONDecodeError, OSError) as e:
+    except OSError as e:
         raise AppError(f"Can not open input file. {e}") from e
+    except JSONDecodeError as e:
+        raise AppError(
+            f"Input file '{input_path}' is not a valid json file. " + str(e)
+        ) from e
 
 
 def get_definitions(definition_path: Path) -> list[Definition]:
@@ -115,10 +121,19 @@ def get_definitions(definition_path: Path) -> list[Definition]:
                     ) from e
                 else:
                     definitions.append(definition)
+            if not definitions:
+                raise AppError("No function definitions were provided")
+
             return definitions
 
-    except (JSONDecodeError, OSError) as e:
-        raise AppError(f"Can not open definition file. {e}") from e
+    except OSError as e:
+        raise AppError(f"Can not open function definition file. {e}") from e
+    except JSONDecodeError as e:
+        raise AppError(
+            f"Function definition file '{definition_path}' is not a valid json"
+            + "file. "
+            + str(e)
+        ) from e
 
 
 def main() -> None:
@@ -140,15 +155,3 @@ def main() -> None:
     except AppError as e:
         print(str(e))
         sys.exit(1)
-
-    print("=" * 50)
-    for prompt in prompts:
-        print(prompt.prompt)
-
-    print("=" * 50)
-    for definition in definitions:
-        print(definition.name)
-        print(definition.description)
-        print(definition.parameters)
-        print(definition.returns)
-        print("*" * 20)
