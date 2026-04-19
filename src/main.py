@@ -1,56 +1,154 @@
 import json
-from string import Template
+import sys
+from argparse import Namespace
+from json import JSONDecodeError
+from pathlib import Path
 
-import numpy
+from pydantic import ValidationError
 
-from llm_sdk import Small_LLM_Model
+from src.errors import AppError
+from src.models import Definition, Prompt
+from src.parser import parse_args
 
-from .jsonschema import JSONSchema, States
-from .parser import parse_args
 
+def get_files(args: Namespace) -> list[Path]:
+    """verifies the files exist and returns paths to the files.
 
-def main():
-    definition_file, input_file, output_file = parse_args()
+    Args:
+      args: Namespace: The arguments.
 
-    prompt_template = Template(f"""
-    You are a function calling assistant. Given a user request, select the 
-    appropriate function and extract the arguments.
+    Returns:
+        A list of Paths to the definition, input, and output files.
 
-    Available functions:
-    {definition_file.read_text(encoding="utf-8")}
+    Raises:
+        AppError: If the input or definition file doesn't exist or cant' create
+            the directory for output file.
+    """
 
-    Output JSON with keys: name, parameters.
+    input_path = Path(args.input)
+    definition_path = Path(args.functions_definition)
+    output_file = Path(args.output)
 
-    User request: "$request"
-
-    Answer: 
-    """)
-    input_list = json.loads(input_file.read_text(encoding="utf-8"))
-    model = Small_LLM_Model()
-    vocab = json.loads(open(model.get_path_to_vocab_file()).read())
-    id_to_token = {id: model.decode([id]) for _, id in vocab.items()}
-
-    results = []
-    for req in input_list[:1]:
-        prompt = req["prompt"]
-        request_str = prompt_template.substitute(request=prompt)
-        input_ids = model.encode(request_str)[0].tolist()
-
-        schema = JSONSchema()
-        response_tokens = []
-
-        while schema.state != States.VALID_STATE:
-            logits = model.get_logits_from_input_ids(input_ids)
-            rank = numpy.array(logits).argsort()[::-1]
-
-            (valid_token_id, valid_token) = schema.next_token(
-                rank, id_to_token
+    for file in input_path, definition_path:
+        if not file.is_file():
+            raise AppError(
+                f"{'input' if file is input_path else 'definition'} file"
+                + " {file} not found"
             )
 
-            input_ids.append(valid_token_id)
-            response_tokens.append(valid_token)
+    # reports early if the path can't be created
+    try:
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise AppError(
+            f"Can't create a directory for the output file {e}"
+        ) from e
 
-        response = json.loads("".join(response_tokens))
-        prompt_dict = {"prompt": prompt}
-        results.append({**prompt_dict, **response})
-    json.dump(results, output_file.open(mode="w"), indent=4)
+    return [
+        definition_path,
+        input_path,
+        output_file,
+    ]
+
+
+def get_prompts(input_path: Path) -> list[Prompt]:
+    """Parses and validates Prompts from the input file.
+
+    Args:
+      input_path: Path: Path to the input file.
+
+    Returns:
+        The validated list of prompts.
+
+    Raises:
+        AppError: If the file has issue opening and/or reading,
+            empty or malformed input/prompt.
+    """
+
+    try:
+        with open(input_path) as input_file:
+            prompts_list = json.load(input_file)
+
+            prompts = []
+            for prompt_dict in prompts_list:
+                if not prompt_dict:
+                    continue
+                try:
+                    prompt = Prompt(**prompt_dict)
+                except ValidationError as e:
+                    raise AppError(f"Malformed input: {prompt_dict}") from e
+                else:
+                    prompts.append(prompt)
+            return prompts
+
+    except (JSONDecodeError, OSError) as e:
+        raise AppError(f"Can not open input file. {e}") from e
+
+
+def get_definitions(definition_path: Path) -> list[Definition]:
+    """Parses and validates function definitions from the definition file.
+
+    Args:
+      definition_path: Path: Path to the functions definition file.
+
+    Returns:
+        The validated list of definitions.
+
+    Raises:
+        AppError: If the file has issue opening and/or reading,
+            empty or malformed definition.
+
+    """
+    try:
+        with open(definition_path) as definition_file:
+            definitions_list = json.load(definition_file)
+
+            definitions = []
+            for definition_dict in definitions_list:
+                if not definition_dict:
+                    continue
+                try:
+                    definition = Definition(**definition_dict)
+                except ValidationError as e:
+                    raise AppError(
+                        f"Malformed function definition: {definition_dict}"
+                    ) from e
+                else:
+                    definitions.append(definition)
+            return definitions
+
+    except (JSONDecodeError, OSError) as e:
+        raise AppError(f"Can not open definition file. {e}") from e
+
+
+def main() -> None:
+    """
+    Orchasterate everything from parsing args to dumping the json result
+    """
+
+    args = parse_args()
+
+    try:
+        definition_path, input_path, output_path = get_files(args)
+    except AppError as e:
+        print(str(e))
+        sys.exit(1)
+
+    try:
+        prompts = get_prompts(input_path)
+        definitions = get_definitions(definition_path)
+    except AppError as e:
+        print(str(e))
+        sys.exit(1)
+
+    print("=" * 50)
+    for prompt in prompts:
+        print(prompt.prompt)
+
+    print("=" * 50)
+    for definition in definitions:
+        print(definition.name)
+        print(definition.description)
+        print(definition.parameters)
+        print(definition.returns)
+        print("*" * 20)
