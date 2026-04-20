@@ -16,8 +16,8 @@ class ModelWrapper:
             raise AppError(f"Can not initialize model. {e}") from e
 
         try:
-            with open(self.model.get_path_to_vocab_file()) as vocab_file:
-                vocab_raw = json.load(vocab_file)
+            with open(self.model.get_path_to_tokenizer_file()) as vocab_file:
+                vocab_raw = json.load(vocab_file)["model"]["vocab"]
 
             vocab = {
                 id: {
@@ -26,7 +26,6 @@ class ModelWrapper:
                 }
                 for token, id in vocab_raw.items()
             }
-
             self.vocab = vocab
 
         except OSError as e:
