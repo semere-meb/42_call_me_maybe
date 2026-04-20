@@ -3,6 +3,7 @@ from argparse import ArgumentParser, Namespace
 output_default = "data/output/function_calls.json"
 definition_default = "data/input/functions_definition.json"
 input_default = "data/input/function_calling_tests.json"
+model_default = "Qwen/Qwen3-0.6B"
 
 
 def parse_args() -> Namespace:
@@ -22,7 +23,7 @@ def parse_args() -> Namespace:
         "-i",
         "--input",
         default=input_default,
-        help=f"path to the prompt file.\n\
+        help=f"Path to the prompt file.\n\
             Default: {input_default}",
     )
     parser.add_argument(
@@ -30,7 +31,14 @@ def parse_args() -> Namespace:
         "--output",
         default=output_default,
         help=f"Path to the output file.\n\
-            default: {output_default}.\n\
+            Default: {output_default}.\n\
             parent directory will be created if it doesn't exist.",
+    )
+    parser.add_argument(
+        "-m",
+        "--model",
+        default=model_default,
+        help=f"Name of the LLM to use.\n\
+            Default: {model_default}.",
     )
     return parser.parse_args()

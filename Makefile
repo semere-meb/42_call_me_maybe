@@ -9,7 +9,7 @@ run: install
 install: $(VENV)
 
 $(VENV): pyproject.toml uv.lock
-	pip install uv
+	pipx install uv
 	uv venv --python 3.10
 	uv sync
 

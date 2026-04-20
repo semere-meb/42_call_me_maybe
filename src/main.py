@@ -1,3 +1,4 @@
+from src.model_wrapper import ModelWrapper
 import json
 import sys
 from argparse import Namespace
@@ -6,6 +7,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from llm_sdk import Small_LLM_Model
 from src.errors import AppError
 from src.models import Definition, Prompt
 from src.parser import parse_args
@@ -145,13 +147,16 @@ def main() -> None:
 
     try:
         definition_path, input_path, output_path = get_files(args)
-    except AppError as e:
-        print(str(e))
-        sys.exit(1)
 
-    try:
         prompts = get_prompts(input_path)
         definitions = get_definitions(definition_path)
+
+        model_wr = ModelWrapper(args.model)
+        model = model_wr.model
+        vocab = model_wr.vocab
+
+        print(model_wr.vocab[0])
+
     except AppError as e:
         print(str(e))
         sys.exit(1)
