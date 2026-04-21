@@ -1,14 +1,17 @@
-from src.model_wrapper import ModelWrapper
 import json
 import sys
 from argparse import Namespace
 from json import JSONDecodeError
 from pathlib import Path
+from string import Template
+from typing import Any
 
+import numpy as np
 from pydantic import ValidationError
 
 from llm_sdk import Small_LLM_Model
 from src.errors import AppError
+from src.model_wrapper import ModelWrapper
 from src.models import Definition, Prompt
 from src.parser import parse_args
 
@@ -122,6 +125,7 @@ def get_definitions(definition_path: Path) -> list[Definition]:
                         f"Malformed function definition: {definition_dict}"
                     ) from e
                 else:
+                    definition.raw = json.dumps(definition_dict)
                     definitions.append(definition)
             if not definitions:
                 raise AppError("No function definitions were provided")
@@ -136,6 +140,87 @@ def get_definitions(definition_path: Path) -> list[Definition]:
             + "file. "
             + str(e)
         ) from e
+
+
+def run_prompt(
+    prompt: Prompt,
+    vocab: dict[int, dict[str, str]],
+    template: Template,
+    model: Small_LLM_Model,
+    definitions: list[Definition],
+) -> str:
+    request = template.substitute(request=prompt.prompt)
+
+    name_request = request + '{"name": "'
+
+    name_partial = ""
+    match_idx = list(range(len(definitions)))
+
+    input_ids = model.encode(name_request)[0].tolist()
+    while len(match_idx) > 1:
+        logits = model.get_logits_from_input_ids(input_ids)
+        next_token_id = int(np.array(logits).argmax())
+        next_token = model.decode([next_token_id])
+
+        input_ids.append(next_token_id)
+        name_partial += next_token
+        matches = [
+            idx
+            for idx in match_idx
+            if definitions[idx].name.startswith(name_partial)
+        ]
+        match_idx = matches
+
+    function_idx = 0
+    if len(match_idx) == 1:
+        function_idx = match_idx[0]
+
+    res_dict = {"name": definitions[function_idx].name}
+    name_additions = json.dumps(res_dict)[:-1]
+
+    # parameter_request = request + name_additions + ', "parameters": {'
+
+    params = {
+        param: definitions[function_idx].parameters[param].type
+        for param in definitions[function_idx].parameters
+        if not param.startswith("__")
+    }
+
+    get_parameters(request + name_additions, params, model, vocab)
+
+    # return str(params)
+    return ""
+
+
+def get_parameters(
+    request: str,
+    params: dict[str, str],
+    model: Small_LLM_Model,
+    vocab: dict[int, dict[str, str]],
+) -> dict[str, Any]:
+    param_values: dict[str, Any] = {}
+    param_request = request + ', "parameters": {'
+
+    for key, type in params.items():
+        param_request += f'"{key}": '
+
+        val = ""
+        input_ids = model.encode(param_request)[0].tolist()
+
+        for _ in range(5):
+            logits = model.get_logits_from_input_ids(input_ids)
+            next_token_id = int(np.array(logits).argmax())
+            next_token_txt = model.decode([next_token_id])
+
+            # rank = np.array(logits).argsort()[::-1]
+
+            val += next_token_txt
+            input_ids.append(next_token_id)
+
+        param_request += val
+    print(param_request)
+
+    return param_values
 
 
 def main() -> None:
@@ -155,7 +240,22 @@ def main() -> None:
         model = model_wr.model
         vocab = model_wr.vocab
 
-        print(model_wr.vocab[0])
+        prompt_template = Template(f"""
+        You are a function calling assistant. Given a user request, select the
+        appropriate function and extract the arguments.
+
+        Available functions:
+        {"\n".join([definition.raw for definition in definitions])}
+
+        Output JSON with keys: name, parameters.
+
+        User request: "$request"
+
+        Answer:""")
+        for prompt in prompts[:1]:
+            result = run_prompt(
+                prompt, vocab, prompt_template, model, definitions
+            )
 
     except AppError as e:
         print(str(e))
