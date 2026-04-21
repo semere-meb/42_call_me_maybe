@@ -1,4 +1,5 @@
 import json
+import re
 import sys
 from argparse import Namespace
 from json import JSONDecodeError
@@ -148,7 +149,7 @@ def run_prompt(
     template: Template,
     model: Small_LLM_Model,
     definitions: list[Definition],
-) -> str:
+) -> dict[str, Any]:
     request = template.substitute(request=prompt.prompt)
 
     name_request = request + '{"name": "'
@@ -180,16 +181,19 @@ def run_prompt(
 
     # parameter_request = request + name_additions + ', "parameters": {'
 
-    params = {
+    param_dict = {
         param: definitions[function_idx].parameters[param].type
         for param in definitions[function_idx].parameters
         if not param.startswith("__")
     }
 
-    get_parameters(request + name_additions, params, model, vocab)
+    params = get_parameters(request + name_additions, param_dict, model, vocab)
 
-    # return str(params)
-    return ""
+    return {
+        "prompt": prompt.prompt,
+        "name": definitions[function_idx].name,
+        "parameters": params,
+    }
 
 
 def get_parameters(
@@ -204,22 +208,40 @@ def get_parameters(
     for key, type in params.items():
         param_request += f'"{key}": '
 
+        if type == "string":
+            param_request += '"'
+            terminator = r'"'
+        elif type == "number":
+            terminator = r"[\,,\}]"
+        else:
+            terminator = r" "
+
         val = ""
         input_ids = model.encode(param_request)[0].tolist()
 
-        for _ in range(5):
+        while True:
             logits = model.get_logits_from_input_ids(input_ids)
             next_token_id = int(np.array(logits).argmax())
-            next_token_txt = model.decode([next_token_id])
-
-            # rank = np.array(logits).argsort()[::-1]
-
+            next_token_txt = vocab[next_token_id]["token_decoded"]
+            if re.search(terminator, next_token_txt):
+                break
             val += next_token_txt
             input_ids.append(next_token_id)
 
-        param_request += val
-    print(param_request)
+        if val == "null":
+            val_obj = None
+        if type == "number":
+            if "." in val:
+                val_obj = float(val)
+            else:
+                val_obj = int(val)
+        elif type == "boolean":
+            val_obj = val == "true"
+        else:
+            val_obj = val
 
+        param_values[key] = val_obj
+        param_request += val + ", "
     return param_values
 
 
@@ -252,10 +274,23 @@ def main() -> None:
         User request: "$request"
 
         Answer:""")
-        for prompt in prompts[:1]:
+        results_all = []
+        for prompt in prompts[:]:
             result = run_prompt(
                 prompt, vocab, prompt_template, model, definitions
             )
+            results_all.append(result)
+
+        try:
+            with open(output_path, mode="w", encoding="utf-8") as output_file:
+                json.dump(results_all, output_file, indent=4)
+        except OSError as e:
+            raise AppError(f"Can not open output file. {e}") from e
+        except TypeError as e:
+            raise AppError(
+                f"There was an issue saving output to '{output_file}'. "
+                + str(e)
+            ) from e
 
     except AppError as e:
         print(str(e))
