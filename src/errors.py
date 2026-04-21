@@ -1,2 +1,4 @@
 class AppError(Exception):
+    """ """
+
     pass

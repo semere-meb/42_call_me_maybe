@@ -7,6 +7,7 @@ model_default = "Qwen/Qwen3-0.6B"
 
 
 def parse_args() -> Namespace:
+    """ """
     parser = ArgumentParser(
         prog="python -m src",
         description="Performs constrained decoding from a prompt",

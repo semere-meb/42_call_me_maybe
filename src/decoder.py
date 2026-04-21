@@ -1,0 +1,145 @@
+import json
+import re
+from string import Template
+from typing import Any
+
+import numpy as np
+
+from llm_sdk import Small_LLM_Model  # type: ignore[attr-defined]
+from src.models import Definition, Prompt
+
+
+def run_prompt(
+    prompt: Prompt,
+    vocab: dict[int, dict[str, str]],
+    template: Template,
+    model: Small_LLM_Model,
+    definitions: list[Definition],
+) -> dict[str, Any]:
+    """
+
+    Runs the prompt, determines the function to be used and accordingly uses
+    the get_prompt with the correct set of keys/parameters to construct and
+    return a fully constructed object.
+
+    Args:
+      prompt: Prompt:
+      vocab: dict[int, dict[str, str]]:
+      template: Template:
+      model: Small_LLM_Model:
+      definitions: list[Definition]:
+
+    Returns:
+      : dict[str, Any] : The fully constructed object.
+
+    """
+    request = template.substitute(request=prompt.prompt)
+
+    name_request = request + '{"name": "'
+
+    name_partial = ""
+    match_idx = list(range(len(definitions)))
+
+    input_ids = model.encode(name_request)[0].tolist()
+    while len(match_idx) > 1:
+        logits = model.get_logits_from_input_ids(input_ids)
+        next_token_id = int(np.array(logits).argmax())
+        next_token = model.decode([next_token_id])
+
+        input_ids.append(next_token_id)
+        name_partial += next_token
+        matches = [
+            idx
+            for idx in match_idx
+            if definitions[idx].name.startswith(name_partial)
+        ]
+        match_idx = matches
+
+    function_idx = 0
+    if len(match_idx) == 1:
+        function_idx = match_idx[0]
+
+    res_dict = {"name": definitions[function_idx].name}
+    name_additions = json.dumps(res_dict)[:-1]
+
+    param_dict = {
+        param: definitions[function_idx].parameters[param].type
+        for param in definitions[function_idx].parameters
+        if not param.startswith("__")
+    }
+
+    params = get_parameters(request + name_additions, param_dict, model, vocab)
+
+    return {
+        "prompt": prompt.prompt,
+        "name": definitions[function_idx].name,
+        "parameters": params,
+    }
+
+
+def get_parameters(
+    request: str,
+    params: dict[str, str],
+    model: Small_LLM_Model,
+    vocab: dict[int, dict[str, str]],
+) -> dict[str, Any]:
+    """
+
+    Prompts and parses the result against each parameter/key and returns it
+    in a dictionary.
+
+    Args:
+      request: str : The prompt string.
+      params: dict[str, str] : A map of the name of a key to its 'type' in
+        definition.
+      model: Small_LLM_Model : The model used to run the prompt.
+      vocab: dict[int, dict[str, str]] : The vocabulary lookup table.
+
+    Returns:
+      : dict[str, Any]: The constructed object representing the parameters
+        field.
+
+
+    """
+    param_values: dict[str, Any] = {}
+    param_request = request + ', "parameters": {'
+
+    for key, type in params.items():
+        param_request += f'"{key}": '
+
+        if type == "string":
+            param_request += '"'
+            terminator = r'"'
+        elif type == "number":
+            terminator = r"[\,,\}]"
+        else:
+            terminator = r" "
+
+        val = ""
+        input_ids = model.encode(param_request)[0].tolist()
+
+        while True:
+            logits = model.get_logits_from_input_ids(input_ids)
+            next_token_id = int(np.array(logits).argmax())
+            next_token_txt = vocab[next_token_id]["token_decoded"]
+            if re.search(terminator, next_token_txt):
+                break
+            val += next_token_txt
+            input_ids.append(next_token_id)
+
+        val_obj: float | int | bool | str | None = None
+        if val == "null":
+            val_obj = None
+        if type == "number":
+            if "." in val:
+                val_obj = float(val)
+            else:
+                val_obj = int(val)
+        elif type == "boolean":
+            val_obj = val == "true"
+        else:
+            val_obj = val
+
+        param_values[key] = val_obj
+        param_request += val + ", "
+    return param_values

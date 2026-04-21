@@ -15,6 +15,7 @@ llm-sdk = { path = "llm_sdk", editable=true}
 
 [dependency-groups]
 dev = [
+    "mypy>=1.20.2",
     "pytest>=9.0.3",
 ]
 
