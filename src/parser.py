@@ -1,13 +1,24 @@
 from argparse import ArgumentParser, Namespace
 
-output_default = "data/output/function_calls.json"
-definition_default = "data/input/functions_definition.json"
-input_default = "data/input/function_calling_tests.json"
-model_default = "Qwen/Qwen3-0.6B"
-
 
 def parse_args() -> Namespace:
-    """ """
+    """
+
+    Parses the command line arguments and returns a dictionary-like object
+    containing input, output, and definition files' path and model name to
+    use.
+
+    Returns:
+      : Namespace : A dictionary-like object containing path to the input,
+        output and definition files and the name of the model to use.
+
+    """
+
+    output_default = "data/output/function_calling_results.json"
+    definition_default = "data/input/functions_definition.json"
+    input_default = "data/input/function_calling_tests.json"
+    model_default = "Qwen/Qwen3-0.6B"
+
     parser = ArgumentParser(
         prog="python -m src",
         description="Performs constrained decoding from a prompt",

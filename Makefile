@@ -41,7 +41,7 @@ format:
 	uv run ruff format $(SRC)
 
 debug: $(VENV)
-	uv run python -m pdb $(SRC_DIR)/main.py
+	uv run python -m pdb -m $(SRC_DIR)
 
 reset-env:
 	rm -rf $(VENV)

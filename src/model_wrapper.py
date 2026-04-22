@@ -29,12 +29,15 @@ class ModelWrapper:
 
         try:
             with open(self.model.get_path_to_tokenizer_file()) as vocab_file:
-                vocab_raw = json.load(vocab_file)["model"]["vocab"]
+                data = json.load(vocab_file)
+                vocab_raw = data["model"]["vocab"]
+                for entry in data.get("added_tokens", []):
+                    vocab_raw[entry["content"]] = entry["id"]
 
             vocab = {
                 id: {
-                    "token_raw": token,
-                    "token_decoded": self.model.decode([id]),
+                    "raw": token,
+                    "decoded": self.model.decode([id]),
                 }
                 for token, id in vocab_raw.items()
             }

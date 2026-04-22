@@ -38,26 +38,40 @@ def run_prompt(
     name_request = request + '{"name": "'
 
     name_partial = ""
-    match_idx = list(range(len(definitions)))
+    matches = list(range(len(definitions)))
 
     input_ids = model.encode(name_request)[0].tolist()
-    while len(match_idx) > 1:
-        logits = model.get_logits_from_input_ids(input_ids)
-        next_token_id = int(np.array(logits).argmax())
-        next_token = model.decode([next_token_id])
+    while len(matches) > 1:
+        logits = np.array(
+            model.get_logits_from_input_ids(input_ids),
+            dtype=float,
+        )
+
+        for token_id in range(len(logits)):
+            if token_id not in vocab:
+                logits[token_id] = -np.inf
+                continue
+            token_text = vocab[token_id]["decoded"]
+            candidate = name_partial + token_text
+            if not any(
+                definitions[idx].name.startswith(candidate) for idx in matches
+            ):
+                logits[token_id] = -np.inf
+
+        next_token_id = int(logits.argmax())
+        next_token = vocab[next_token_id]["decoded"]
 
         input_ids.append(next_token_id)
         name_partial += next_token
         matches = [
             idx
-            for idx in match_idx
+            for idx in matches
             if definitions[idx].name.startswith(name_partial)
         ]
-        match_idx = matches
 
     function_idx = 0
-    if len(match_idx) == 1:
-        function_idx = match_idx[0]
+    if len(matches) == 1:
+        function_idx = matches[0]
 
     res_dict = {"name": definitions[function_idx].name}
     name_additions = json.dumps(res_dict)[:-1]
@@ -104,13 +118,13 @@ def get_parameters(
     param_values: dict[str, Any] = {}
     param_request = request + ', "parameters": {'
 
-    for key, type in params.items():
+    for key, key_type in params.items():
         param_request += f'"{key}": '
 
-        if type == "string":
+        if key_type == "string":
             param_request += '"'
             terminator = r'"'
-        elif type == "number":
+        elif key_type == "number":
             terminator = r"[\,,\}]"
         else:
             terminator = r" "
@@ -121,24 +135,27 @@ def get_parameters(
         while True:
             logits = model.get_logits_from_input_ids(input_ids)
             next_token_id = int(np.array(logits).argmax())
-            next_token_txt = vocab[next_token_id]["token_decoded"]
+            next_token_txt = vocab[next_token_id]["decoded"]
             if re.search(terminator, next_token_txt):
                 break
             val += next_token_txt
             input_ids.append(next_token_id)
 
         val_obj: float | int | bool | str | None = None
-        if val == "null":
-            val_obj = None
-        if type == "number":
-            if "." in val:
-                val_obj = float(val)
+        try:
+            if val == "null":
+                val_obj = None
+            elif key_type == "number":
+                if "." in val:
+                    val_obj = float(val)
+                else:
+                    val_obj = int(val)
+            elif key_type == "boolean":
+                val_obj = val == "true"
             else:
-                val_obj = int(val)
-        elif type == "boolean":
-            val_obj = val == "true"
-        else:
-            val_obj = val
+                val_obj = val
+        except ValueError:
+            val_obj = None
 
         param_values[key] = val_obj
         param_request += val + ", "

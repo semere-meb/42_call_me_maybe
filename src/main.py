@@ -27,13 +27,14 @@ def main() -> None:
         model_wr = ModelWrapper(args.model)
         model = model_wr.model
         vocab = model_wr.vocab
+        sep = ",\n"
 
         prompt_template = Template(f"""
         You are a function calling assistant. Given a user request, select the
         appropriate function and extract the arguments.
 
         Available functions:
-        {"\n".join([definition.raw for definition in definitions])}
+        [{sep.join([definition.raw for definition in definitions])}]
 
         Output JSON with keys: name, parameters.
 
