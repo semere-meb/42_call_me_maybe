@@ -42,7 +42,7 @@ def main() -> None:
 
         Answer:""")
         results_all = []
-        for prompt in prompts[:1]:
+        for prompt in prompts:
             result = run_prompt(
                 prompt, vocab, prompt_template, model, definitions
             )

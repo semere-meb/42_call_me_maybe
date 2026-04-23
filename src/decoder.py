@@ -1,5 +1,4 @@
 import json
-import re
 from string import Template
 from typing import Any
 
@@ -7,6 +6,7 @@ import numpy as np
 
 from llm_sdk import Small_LLM_Model  # type: ignore[attr-defined]
 from src.models import Definition, Prompt
+from src.schema import Schema, States
 
 
 def run_prompt(
@@ -123,23 +123,14 @@ def get_parameters(
 
         if key_type == "string":
             param_request += '"'
-            terminator = r'"'
-        elif key_type == "number":
-            terminator = r"[\,,\}]"
-        else:
-            terminator = r" "
 
-        val = ""
-        input_ids = model.encode(param_request)[0].tolist()
-
-        while True:
-            logits = model.get_logits_from_input_ids(input_ids)
-            next_token_id = int(np.array(logits).argmax())
-            next_token_txt = vocab[next_token_id]["decoded"]
-            if re.search(terminator, next_token_txt):
-                break
-            val += next_token_txt
-            input_ids.append(next_token_id)
+        schema = Schema(
+            model,
+            vocab,
+            States.STR if key_type == "string" else States.START,
+        )
+        val = schema.get_next_val(param_request)
+        print("resutl =>", val)
 
         val_obj: float | int | bool | str | None = None
         try:
