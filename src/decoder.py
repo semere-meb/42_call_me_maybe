@@ -5,6 +5,7 @@ from typing import Any
 import numpy as np
 
 from llm_sdk import Small_LLM_Model  # type: ignore[attr-defined]
+from src.errors import AppError
 from src.models import Definition, Prompt
 from src.schema import Schema, States
 
@@ -12,7 +13,6 @@ from src.schema import Schema, States
 def run_prompt(
     prompt: Prompt,
     vocab: dict[int, dict[str, str]],
-    template: Template,
     model: Small_LLM_Model,
     definitions: list[Definition],
 ) -> dict[str, Any]:
@@ -33,8 +33,47 @@ def run_prompt(
       : dict[str, Any] : The fully constructed object.
 
     """
+    sep = "\n"
+    template = Template(f"""
+    You are a function calling assistant. Given a user request, select the
+    appropriate function and extract the arguments.
+
+    Available functions:
+    [{sep.join([definition.raw for definition in definitions])}]
+
+    Output JSON with keys: name, parameters.
+
+    User request: "$request"
+
+    Answer:""")
+
     request = template.substitute(request=prompt.prompt)
 
+    function_idx = get_function(request, definitions, model, vocab)
+    res_dict = {"name": definitions[function_idx].name}
+    name_additions = json.dumps(res_dict)[:-1]
+
+    param_dict = {
+        param: definitions[function_idx].parameters[param].type
+        for param in definitions[function_idx].parameters
+        if not param.startswith("__")
+    }
+
+    params = get_parameters(request + name_additions, param_dict, model, vocab)
+
+    return {
+        "prompt": prompt.prompt,
+        "name": definitions[function_idx].name,
+        "parameters": params,
+    }
+
+
+def get_function(
+    request: str,
+    definitions: list[Definition],
+    model: Small_LLM_Model,
+    vocab: dict[int, dict[str, str]],
+) -> int:
     name_request = request + '{"name": "'
 
     name_partial = ""
@@ -69,26 +108,12 @@ def run_prompt(
             if definitions[idx].name.startswith(name_partial)
         ]
 
-    function_idx = 0
     if len(matches) == 1:
         function_idx = matches[0]
+    else:
+        raise AppError("No match found.")
 
-    res_dict = {"name": definitions[function_idx].name}
-    name_additions = json.dumps(res_dict)[:-1]
-
-    param_dict = {
-        param: definitions[function_idx].parameters[param].type
-        for param in definitions[function_idx].parameters
-        if not param.startswith("__")
-    }
-
-    params = get_parameters(request + name_additions, param_dict, model, vocab)
-
-    return {
-        "prompt": prompt.prompt,
-        "name": definitions[function_idx].name,
-        "parameters": params,
-    }
+    return function_idx
 
 
 def get_parameters(
@@ -130,7 +155,6 @@ def get_parameters(
             States.STR if key_type == "string" else States.START,
         )
         val = schema.get_next_val(param_request)
-        print("resutl =>", val)
 
         val_obj: float | int | bool | str | None = None
         try:

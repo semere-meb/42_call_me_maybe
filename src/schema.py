@@ -1,10 +1,11 @@
 import enum
 import re
-from typing import AnyStr, Callable, Pattern
+from typing import Callable, Pattern
 
 import numpy as np
+from numpy.typing import NDArray
 
-from llm_sdk import Small_LLM_Model
+from llm_sdk import Small_LLM_Model  # type: ignore[attr-defined]
 from src.errors import AppError
 
 
@@ -20,16 +21,14 @@ class States(enum.Enum):
     ERROR = "ERROR"
 
 
-patterns = {
+patterns: dict[str, Pattern[str]] = {
     "space": re.compile(r"\s+"),
-    "char": re.compile(r'[^"\\]*'),
+    "char": re.compile(r'[^"\\]+'),
     "digit": re.compile(r"\d+"),
     "negative_sign": re.compile(r"\s*-"),
     "literal": re.compile(r"\s*(true|false|null)\s*"),
     # structure controls
     "quote": re.compile(r'\s*"\s*'),
-    "comma": re.compile(r"\s*,\s*$"),
-    "curly_close": re.compile(r"\s*}+\s*"),
     "dot": re.compile(r"\."),
     "backslash": re.compile(r"\\"),
     "one_char": re.compile(r"."),
@@ -39,7 +38,7 @@ patterns = {
 }
 
 transitions: dict[
-    States, dict[str, list | Callable[[Pattern[AnyStr]], States]]
+    States, dict[str, list[Pattern[str]] | Callable[[Pattern[str]], States]]
 ] = {
     States.START: {
         "valid_tokens": [
@@ -109,10 +108,10 @@ transitions: dict[
     },
     States.STR_ESC: {
         "valid_tokens": [
-            patterns["char"],
+            patterns["one_char"],
         ],
         "fn": lambda pattern: {
-            patterns["char"]: States.STR,
+            patterns["one_char"]: States.STR,
         }.get(pattern, States.ERROR),
     },
 }
@@ -130,36 +129,37 @@ class Schema:
         self.state = init_state
         self.token_count = 0
         self.transitions: dict[
-            States, dict[str, list | Callable[[Pattern], States]]
+            States,
+            dict[str, list[Pattern[str]] | Callable[[Pattern[str]], States]],
         ] = transitions
 
-    def get_next_val(self, string, max_token: int = -1) -> str:
+    def get_next_val(self, string: str, max_token: int = -1) -> str:
 
         input_ids = self.model.encode(string)[0].tolist()
 
         res = ""
-        while (
-            self.state not in [States.END, States.ERROR]
-            or self.token_count == max_token
-        ):
-            validators: list[Pattern[AnyStr]] = self.transitions[self.state][
+        while True:
+            self.token_count += 1
+            validators: list[Pattern[str]] = self.transitions[self.state][
                 "valid_tokens"
             ]
-            transition_fn: Callable[[Pattern[AnyStr]], States] = (
-                self.transitions[self.state]["fn"]
-            )
+            transition_fn: Callable[[Pattern[str]], States] = self.transitions[
+                self.state
+            ]["fn"]
 
             logits = np.array(
                 self.model.get_logits_from_input_ids(input_ids),
                 dtype=float,
             )
 
-            # top-k, with k = 20
             rank = logits.argsort()[::-1][:20]
             token_id = self.next_valid_token(rank, validators, transition_fn)
             if token_id is None:
                 raise AppError("Can't find a valid token with top-k as 20")
-            if self.state in [States.END, States.ERROR]:
+            if (
+                self.state in [States.END, States.ERROR]
+                or self.token_count == max_token
+            ):
                 break
             input_ids.append(token_id)
             res += self.vocab[token_id]["decoded"]
@@ -169,13 +169,18 @@ class Schema:
 
         return res
 
-    def next_valid_token(self, rank, validators, transition_fn) -> int | None:
+    def next_valid_token(
+        self,
+        rank: NDArray[int],
+        validators: list[Pattern[str]],
+        transition_fn: Callable[[Pattern[str]], States],
+    ) -> int | None:
         for token_id in rank:
+            if token_id not in self.vocab:
+                continue
             token_text = self.vocab[token_id]["decoded"]
-            print(f"Trying {repr(token_text)}, {self.state}")
             for validator in validators:
                 if validator.fullmatch(token_text):
-                    print("MATCHED")
                     self.state = transition_fn(validator)
                     return token_id
         return None

@@ -1,5 +1,4 @@
 import sys
-from string import Template
 
 from src.decoder import run_prompt
 from src.errors import AppError
@@ -27,25 +26,10 @@ def main() -> None:
         model_wr = ModelWrapper(args.model)
         model = model_wr.model
         vocab = model_wr.vocab
-        sep = ",\n"
 
-        prompt_template = Template(f"""
-        You are a function calling assistant. Given a user request, select the
-        appropriate function and extract the arguments.
-
-        Available functions:
-        [{sep.join([definition.raw for definition in definitions])}]
-
-        Output JSON with keys: name, parameters.
-
-        User request: "$request"
-
-        Answer:""")
         results_all = []
-        for prompt in prompts:
-            result = run_prompt(
-                prompt, vocab, prompt_template, model, definitions
-            )
+        for prompt in prompts[:1]:
+            result = run_prompt(prompt, vocab, model, definitions)
             results_all.append(result)
         flush_results(results_all, output_path)
 
