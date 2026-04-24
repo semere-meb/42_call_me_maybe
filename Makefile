@@ -1,5 +1,6 @@
 SRC_DIR = src
 SRC = $(SRC_DIR)/*.py
+STUBS_DIR = stubs
 
 VENV = .venv
 
@@ -17,11 +18,15 @@ clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	rm -rf .mypy_cache
 	rm -rf .ruff_cache
+	rm -rf .pytest_cache
+
+fclean: clean
+	uv cache clean
 	rm -rf $(VENV)
 
 lint: $(VENV)
-	uv run ruff check $(SRC)
-	uv run flake8 $(SRC)
+	uvx ruff check $(SRC) $(STUBS_DIR)
+	uvx flake8 $(SRC) $(STUBS_DIR)
 	uv run mypy $(SRC) \
 	--warn-return-any \
 	--warn-unused-ignores \
@@ -30,23 +35,21 @@ lint: $(VENV)
 	--check-untyped-defs
 
 lint-strict: $(VENV)
-	uv run ruff check $(SRC)
-	uv run flake8 $(SRC)
+	uvx ruff check $(SRC) $(STUBS_DIR)
+	uvx flake8 $(SRC) $(STUBS_DIR)
 	uv run mypy $(SRC) --strict
 
 test:
 	uv run pytest
 
 format:
-	uv run ruff format $(SRC)
+	uvx ruff format $(SRC)
 
 debug: $(VENV)
 	uv run python -m pdb -m $(SRC_DIR)
 
-reset-env:
-	rm -rf $(VENV)
-	$(MAKE) install
-
 re: clean install
+
+fre: fclean install
 
 .PHONY: install run clean lint lint-strict debug re reset-env test

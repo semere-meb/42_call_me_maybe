@@ -1,8 +1,13 @@
 import json
 from json import JSONDecodeError
+from typing import cast
 
-from llm_sdk import Small_LLM_Model  # type: ignore[attr-defined]
+from llm_sdk import Small_LLM_Model
 from src.errors import AppError
+
+
+class ModelError(Exception):
+    pass
 
 
 class ModelWrapper:
@@ -47,3 +52,29 @@ class ModelWrapper:
             raise AppError(f"Can not open vocab file. {e}") from e
         except JSONDecodeError as e:
             raise AppError(f"Can not parse vocab file. {e}") from e
+
+    def get_logits(self, input_ids: list[int]) -> list[int | float]:
+        try:
+            return self.model.get_logits_from_input_ids(input_ids)
+        except Exception as e:
+            raise ModelError(
+                f"Error: The model couldn't generate logits for the input. {e}"
+            ) from e
+
+    def encode(self, text: str) -> list[int]:
+        try:
+            return cast(list[int], self.model.encode(text)[0].tolist())
+        except Exception as e:
+            raise ModelError(
+                f"Error: The text {text} couldn't be encoded by the model. {e}"
+            ) from e
+
+    def decode(self, token_id: int) -> str:
+        if token_id not in self.vocab:
+            raise ModelError(f"Error: {token_id} is not in the model vocab.")
+        try:
+            return self.vocab[token_id]["decoded"]
+        except Exception as e:
+            raise ModelError(
+                f"Error: {token_id} couldn't be decoded by the model. {e}"
+            ) from e

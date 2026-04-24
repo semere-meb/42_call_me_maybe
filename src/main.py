@@ -3,7 +3,7 @@ import sys
 from src.decoder import run_prompt
 from src.errors import AppError
 from src.io_utils import flush_results, get_definitions, get_files, get_prompts
-from src.model_wrapper import ModelWrapper
+from src.model_wrapper import ModelError, ModelWrapper
 from src.parser import parse_args
 
 
@@ -23,16 +23,14 @@ def main() -> None:
         prompts = get_prompts(input_path)
         definitions = get_definitions(definition_path)
 
-        model_wr = ModelWrapper(args.model)
-        model = model_wr.model
-        vocab = model_wr.vocab
+        model = ModelWrapper(args.model)
 
         results_all = []
-        for prompt in prompts[:1]:
-            result = run_prompt(prompt, vocab, model, definitions)
+        for prompt in prompts:
+            result = run_prompt(prompt, model, definitions)
             results_all.append(result)
         flush_results(results_all, output_path)
 
-    except AppError as e:
+    except (AppError, ModelError) as e:
         print(str(e))
         sys.exit(1)

@@ -4,16 +4,15 @@ from typing import Any
 
 import numpy as np
 
-from llm_sdk import Small_LLM_Model  # type: ignore[attr-defined]
 from src.errors import AppError
+from src.model_wrapper import ModelWrapper
 from src.models import Definition, Prompt
 from src.schema import Schema, States
 
 
 def run_prompt(
     prompt: Prompt,
-    vocab: dict[int, dict[str, str]],
-    model: Small_LLM_Model,
+    model: ModelWrapper,
     definitions: list[Definition],
 ) -> dict[str, Any]:
     """
@@ -23,23 +22,20 @@ def run_prompt(
     return a fully constructed object.
 
     Args:
-      prompt: Prompt:
-      vocab: dict[int, dict[str, str]]:
-      template: Template:
-      model: Small_LLM_Model:
-      definitions: list[Definition]:
+      prompt: Prompt: The prompt.
+      model: The model used to run the prompts.
+      definitions: The list of function definitions.
 
     Returns:
-      : dict[str, Any] : The fully constructed object.
+      : The fully constructed object.
 
     """
-    sep = "\n"
     template = Template(f"""
     You are a function calling assistant. Given a user request, select the
     appropriate function and extract the arguments.
 
     Available functions:
-    [{sep.join([definition.raw for definition in definitions])}]
+    [{", ".join([definition.raw for definition in definitions])}]
 
     Output JSON with keys: name, parameters.
 
@@ -49,7 +45,7 @@ def run_prompt(
 
     request = template.substitute(request=prompt.prompt)
 
-    function_idx = get_function(request, definitions, model, vocab)
+    function_idx = get_function(request, definitions, model)
     res_dict = {"name": definitions[function_idx].name}
     name_additions = json.dumps(res_dict)[:-1]
 
@@ -59,7 +55,7 @@ def run_prompt(
         if not param.startswith("__")
     }
 
-    params = get_parameters(request + name_additions, param_dict, model, vocab)
+    params = get_parameters(request + name_additions, param_dict, model)
 
     return {
         "prompt": prompt.prompt,
@@ -71,26 +67,25 @@ def run_prompt(
 def get_function(
     request: str,
     definitions: list[Definition],
-    model: Small_LLM_Model,
-    vocab: dict[int, dict[str, str]],
+    model: ModelWrapper,
 ) -> int:
     name_request = request + '{"name": "'
 
     name_partial = ""
     matches = list(range(len(definitions)))
 
-    input_ids = model.encode(name_request)[0].tolist()
+    input_ids = model.encode(name_request)
     while len(matches) > 1:
         logits = np.array(
-            model.get_logits_from_input_ids(input_ids),
+            model.get_logits(input_ids),
             dtype=float,
         )
 
         for token_id in range(len(logits)):
-            if token_id not in vocab:
+            if token_id not in model.vocab:
                 logits[token_id] = -np.inf
                 continue
-            token_text = vocab[token_id]["decoded"]
+            token_text = model.vocab[token_id]["decoded"]
             candidate = name_partial + token_text
             if not any(
                 definitions[idx].name.startswith(candidate) for idx in matches
@@ -98,7 +93,7 @@ def get_function(
                 logits[token_id] = -np.inf
 
         next_token_id = int(logits.argmax())
-        next_token = vocab[next_token_id]["decoded"]
+        next_token = model.vocab[next_token_id]["decoded"]
 
         input_ids.append(next_token_id)
         name_partial += next_token
@@ -119,8 +114,7 @@ def get_function(
 def get_parameters(
     request: str,
     params: dict[str, str],
-    model: Small_LLM_Model,
-    vocab: dict[int, dict[str, str]],
+    model: ModelWrapper,
 ) -> dict[str, Any]:
     """
 
@@ -131,7 +125,7 @@ def get_parameters(
       request: str : The prompt string.
       params: dict[str, str] : A map of the name of a key to its 'type' in
         definition.
-      model: Small_LLM_Model : The model used to run the prompt.
+      model: ModelWrapper : The model used to run the prompt.
       vocab: dict[int, dict[str, str]] : The vocabulary lookup table.
 
     Returns:
@@ -140,20 +134,18 @@ def get_parameters(
 
 
     """
-    param_values: dict[str, Any] = {}
+    param_values: dict[str, float | int | bool | str | None] = {}
     param_request = request + ', "parameters": {'
 
     for key, key_type in params.items():
         param_request += f'"{key}": '
 
+        init_state = States.START
         if key_type == "string":
             param_request += '"'
+            init_state = States.STR
 
-        schema = Schema(
-            model,
-            vocab,
-            States.STR if key_type == "string" else States.START,
-        )
+        schema = Schema(model, init_state)
         val = schema.get_next_val(param_request)
 
         val_obj: float | int | bool | str | None = None

@@ -1,12 +1,12 @@
 import enum
 import re
-from typing import Callable, Pattern
+from typing import Callable, Pattern, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
 
-from llm_sdk import Small_LLM_Model  # type: ignore[attr-defined]
 from src.errors import AppError
+from src.model_wrapper import ModelWrapper
 
 
 class States(enum.Enum):
@@ -37,9 +37,13 @@ patterns: dict[str, Pattern[str]] = {
     "str_terminator": re.compile(r'"\s*\,?\s*}{,2}\s*'),
 }
 
-transitions: dict[
-    States, dict[str, list[Pattern[str]] | Callable[[Pattern[str]], States]]
-] = {
+
+class StateTransition(TypedDict):
+    valid_tokens: list[Pattern[str]]
+    fn: Callable[[Pattern[str]], States]
+
+
+transitions: dict[States, StateTransition] = {
     States.START: {
         "valid_tokens": [
             patterns["digit"],
@@ -120,22 +124,17 @@ transitions: dict[
 class Schema:
     def __init__(
         self,
-        model: Small_LLM_Model,
-        vocab: dict[int, dict[str, str]],
+        model: ModelWrapper,
         init_state: States = States.START,
     ) -> None:
         self.model = model
-        self.vocab = vocab
         self.state = init_state
         self.token_count = 0
-        self.transitions: dict[
-            States,
-            dict[str, list[Pattern[str]] | Callable[[Pattern[str]], States]],
-        ] = transitions
+        self.transitions: dict[States, StateTransition] = transitions
 
     def get_next_val(self, string: str, max_token: int = -1) -> str:
 
-        input_ids = self.model.encode(string)[0].tolist()
+        input_ids = self.model.encode(string)
 
         res = ""
         while True:
@@ -148,7 +147,7 @@ class Schema:
             ]["fn"]
 
             logits = np.array(
-                self.model.get_logits_from_input_ids(input_ids),
+                self.model.get_logits(input_ids),
                 dtype=float,
             )
 
@@ -162,7 +161,7 @@ class Schema:
             ):
                 break
             input_ids.append(token_id)
-            res += self.vocab[token_id]["decoded"]
+            res += self.model.decode(token_id)
 
         if self.state == States.ERROR:
             raise AppError("Invalid value")
@@ -171,16 +170,16 @@ class Schema:
 
     def next_valid_token(
         self,
-        rank: NDArray[int],
+        rank: NDArray[np.intp],
         validators: list[Pattern[str]],
         transition_fn: Callable[[Pattern[str]], States],
     ) -> int | None:
         for token_id in rank:
-            if token_id not in self.vocab:
+            if token_id not in self.model.vocab:
                 continue
-            token_text = self.vocab[token_id]["decoded"]
+            token_text = self.model.vocab[token_id]["decoded"]
             for validator in validators:
                 if validator.fullmatch(token_text):
                     self.state = transition_fn(validator)
-                    return token_id
+                    return int(token_id)
         return None
