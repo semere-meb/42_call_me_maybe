@@ -1,3 +1,4 @@
+from colorama import Fore
 import json
 from string import Template
 from typing import Any
@@ -57,11 +58,14 @@ def run_prompt(
 
     params = get_parameters(request + name_additions, param_dict, model)
 
-    return {
+    res = {
         "prompt": prompt.prompt,
         "name": definitions[function_idx].name,
         "parameters": params,
     }
+    print(f"JSON: {Fore.MAGENTA}{json.dumps(res, indent=4)}{Fore.RESET}")
+    print("=" * 50)
+    return res
 
 
 def get_function(
@@ -87,9 +91,7 @@ def get_function(
                 continue
             token_text = model.vocab[token_id]["decoded"]
             candidate = name_partial + token_text
-            if not any(
-                definitions[idx].name.startswith(candidate) for idx in matches
-            ):
+            if not any(definitions[idx].name.startswith(candidate) for idx in matches):
                 logits[token_id] = -np.inf
 
         next_token_id = int(logits.argmax())
@@ -98,9 +100,7 @@ def get_function(
         input_ids.append(next_token_id)
         name_partial += next_token
         matches = [
-            idx
-            for idx in matches
-            if definitions[idx].name.startswith(name_partial)
+            idx for idx in matches if definitions[idx].name.startswith(name_partial)
         ]
 
     if len(matches) == 1:
@@ -138,6 +138,7 @@ def get_parameters(
     param_request = request + ', "parameters": {'
 
     for key, key_type in params.items():
+        print(f"Parameter: {Fore.BLUE}{repr(key)}{Fore.RESET}")
         param_request += f'"{key}": '
 
         init_state = States.START
@@ -147,16 +148,16 @@ def get_parameters(
 
         schema = Schema(model, init_state)
         val = schema.get_next_val(param_request)
+        print(f"Value: {Fore.BLUE}{repr(val)}{Fore.RESET}")
 
         val_obj: float | int | bool | str | None = None
         try:
             if val == "null":
                 val_obj = None
             elif key_type == "number":
-                if "." in val:
-                    val_obj = float(val)
-                else:
-                    val_obj = int(val)
+                val_obj = float(val)
+            elif key_type == "integer":
+                val_obj = int(val)
             elif key_type == "boolean":
                 val_obj = val == "true"
             else:

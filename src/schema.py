@@ -1,3 +1,4 @@
+from colorama import Fore
 import enum
 import re
 from typing import Callable, Pattern, TypedDict
@@ -132,7 +133,7 @@ class Schema:
         self.token_count = 0
         self.transitions: dict[States, StateTransition] = transitions
 
-    def get_next_val(self, string: str, max_token: int = -1) -> str:
+    def get_next_val(self, string: str, max_token: int = 30) -> str:
 
         input_ids = self.model.encode(string)
 
@@ -175,11 +176,19 @@ class Schema:
         transition_fn: Callable[[Pattern[str]], States],
     ) -> int | None:
         for token_id in rank:
+            self.token_count += 1
             if token_id not in self.model.vocab:
                 continue
             token_text = self.model.vocab[token_id]["decoded"]
+            print(
+                f"\ttoken: {Fore.YELLOW}{repr(token_text):15.15}{Fore.RESET}, state: {Fore.YELLOW}{self.state:20.20}{Fore.RESET}",
+                end="",
+            )
             for validator in validators:
                 if validator.fullmatch(token_text):
                     self.state = transition_fn(validator)
+                    print(f" ✔ new state: {Fore.CYAN}{self.state}{Fore.RESET}")
                     return int(token_id)
+            else:
+                print(f"{Fore.RED} ✘ skipping{Fore.RESET}")
         return None
