@@ -44,6 +44,13 @@ class StateTransition(TypedDict):
     fn: Callable[[Pattern[str]], States]
 
 
+_structural_patterns: set[Pattern[str]] = {
+    patterns["str_terminator"],
+    patterns["nbr_terminator"],
+    patterns["quote"],
+    patterns["space"],
+}
+
 transitions: dict[States, StateTransition] = {
     States.START: {
         "valid_tokens": [
@@ -140,10 +147,10 @@ class Schema:
         res = ""
         while True:
             self.token_count += 1
-            validators: list[Pattern[str]] = self.transitions[self.state][
+            patterns: list[Pattern[str]] = self.transitions[self.state][
                 "valid_tokens"
             ]
-            transition_fn: Callable[[Pattern[str]], States] = self.transitions[
+            fn: Callable[[Pattern[str]], States] = self.transitions[
                 self.state
             ]["fn"]
 
@@ -153,16 +160,17 @@ class Schema:
             )
 
             rank = logits.argsort()[::-1][:20]
-            token_id = self.next_valid_token(rank, validators, transition_fn)
-            if token_id is None:
+            result = self.next_valid_token(rank, patterns, fn)
+            if result is None:
                 raise AppError("Can't find a valid token with top-k as 20")
+            token_id, effective = result
+            res += effective
             if (
                 self.state in [States.END, States.ERROR]
                 or self.token_count == max_token
             ):
                 break
             input_ids.append(token_id)
-            res += self.model.decode(token_id)
 
         if self.state == States.ERROR:
             raise AppError("Invalid value")
@@ -172,11 +180,10 @@ class Schema:
     def next_valid_token(
         self,
         rank: NDArray[np.intp],
-        validators: list[Pattern[str]],
+        patterns: list[Pattern[str]],
         transition_fn: Callable[[Pattern[str]], States],
-    ) -> int | None:
+    ) -> tuple[int, str] | None:
         for token_id in rank:
-            self.token_count += 1
             if token_id not in self.model.vocab:
                 continue
             token_text = self.model.vocab[token_id]["decoded"]
@@ -185,11 +192,41 @@ class Schema:
                  state: {Fore.YELLOW}{self.state:20.20}{Fore.RESET}",
                 end="",
             )
-            for validator in validators:
-                if validator.fullmatch(token_text):
-                    self.state = transition_fn(validator)
+
+            for pattern in patterns:
+                if pattern.fullmatch(token_text):
+                    self.state = transition_fn(pattern)
+                    effective = (
+                        "" if pattern in _structural_patterns else token_text
+                    )
                     print(f" ✔ new state: {Fore.CYAN}{self.state}{Fore.RESET}")
-                    return int(token_id)
-            else:
-                print(f"{Fore.RED} ✘ skipping{Fore.RESET}")
+                    return int(token_id), effective
+
+            for split_pos in range(1, len(token_text)):
+                prefix = token_text[:split_pos]
+                suffix = token_text[split_pos:]
+                for pattern in patterns:
+                    if not pattern.fullmatch(prefix):
+                        continue
+                    mid_state = transition_fn(pattern)
+                    if mid_state not in self.transitions:
+                        continue
+                    next_patterns = self.transitions[mid_state]["valid_tokens"]
+                    next_fn = self.transitions[mid_state]["fn"]
+                    for next_validator in next_patterns:
+                        if next_validator.fullmatch(suffix):
+                            self.state = next_fn(next_validator)
+                            effective = (
+                                ""
+                                if pattern in _structural_patterns
+                                else prefix
+                            )
+                            print(
+                                f" ✔ split:{split_pos}"
+                                f" new state: \
+                                {Fore.CYAN}{self.state}{Fore.RESET}"
+                            )
+                            return int(token_id), effective
+
+            print(f"{Fore.RED} ✘ skipping{Fore.RESET}")
         return None
