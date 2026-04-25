@@ -146,9 +146,9 @@ def get_parameters(
         param_request += f'"{key}": '
 
         init_state = States.START
-        if key_type == "string":
-            param_request += '"'
-            init_state = States.STR
+        # if key_type == "string":
+        #     param_request += '"'
+        #     init_state = States.STR
 
         schema = Schema(model, init_state)
         val = schema.get_next_val(param_request)

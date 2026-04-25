@@ -193,38 +193,44 @@ class Schema:
                 end="",
             )
 
-            for pattern in patterns:
-                if pattern.fullmatch(token_text):
-                    self.state = transition_fn(pattern)
-                    effective = (
-                        "" if pattern in _structural_patterns else token_text
-                    )
-                    print(f" ✔ new state: {Fore.CYAN}{self.state}{Fore.RESET}")
-                    return int(token_id), effective
-
-            for split_pos in range(1, len(token_text)):
+            for split_pos in range(len(token_text), 0, -1):
                 prefix = token_text[:split_pos]
                 suffix = token_text[split_pos:]
                 for pattern in patterns:
                     if not pattern.fullmatch(prefix):
                         continue
                     mid_state = transition_fn(pattern)
+                    if not suffix:
+                        self.state = mid_state
+                        effective = (
+                            "" if pattern in _structural_patterns else prefix
+                        )
+                        print(
+                            f" ✔ split:{split_pos} new state:"
+                            f" {Fore.CYAN}{self.state}{Fore.RESET}"
+                        )
+                        return int(token_id), effective
                     if mid_state not in self.transitions:
                         continue
                     next_patterns = self.transitions[mid_state]["valid_tokens"]
                     next_fn = self.transitions[mid_state]["fn"]
-                    for next_validator in next_patterns:
-                        if next_validator.fullmatch(suffix):
-                            self.state = next_fn(next_validator)
-                            effective = (
+                    for next_pattern in next_patterns:
+                        if next_pattern.fullmatch(suffix):
+                            self.state = next_fn(next_pattern)
+                            prefix_eff = (
                                 ""
                                 if pattern in _structural_patterns
                                 else prefix
                             )
+                            suffix_eff = (
+                                ""
+                                if next_pattern in _structural_patterns
+                                else suffix
+                            )
+                            effective = prefix_eff + suffix_eff
                             print(
-                                f" ✔ split:{split_pos}"
-                                f" new state: \
-                                {Fore.CYAN}{self.state}{Fore.RESET}"
+                                f" ✔ split:{split_pos} new state: "
+                                f"{Fore.CYAN}{self.state}{Fore.RESET}"
                             )
                             return int(token_id), effective
 
