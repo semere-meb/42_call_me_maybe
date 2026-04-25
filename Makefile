@@ -10,7 +10,7 @@ run: install
 install: $(VENV)
 
 $(VENV): pyproject.toml uv.lock
-	pipx install uv
+	pip install uv
 	uv venv --python 3.10
 	uv sync
 
@@ -39,11 +39,11 @@ lint-strict: $(VENV)
 	uvx flake8 $(SRC) $(STUBS_DIR)
 	uv run mypy $(SRC) --strict
 
-test:
+test: $(VENV)
 	uv run pytest
 
 format:
-	uvx ruff format $(SRC)
+	uvx ruff format $(SRC) $(STUB_DIR)
 
 debug: $(VENV)
 	uv run python -m pdb -m $(SRC_DIR)
