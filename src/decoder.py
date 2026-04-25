@@ -1,9 +1,9 @@
-from colorama import Fore
 import json
 from string import Template
 from typing import Any
 
 import numpy as np
+from colorama import Fore
 
 from src.errors import AppError
 from src.model_wrapper import ModelWrapper
@@ -91,7 +91,9 @@ def get_function(
                 continue
             token_text = model.vocab[token_id]["decoded"]
             candidate = name_partial + token_text
-            if not any(definitions[idx].name.startswith(candidate) for idx in matches):
+            if not any(
+                definitions[idx].name.startswith(candidate) for idx in matches
+            ):
                 logits[token_id] = -np.inf
 
         next_token_id = int(logits.argmax())
@@ -100,7 +102,9 @@ def get_function(
         input_ids.append(next_token_id)
         name_partial += next_token
         matches = [
-            idx for idx in matches if definitions[idx].name.startswith(name_partial)
+            idx
+            for idx in matches
+            if definitions[idx].name.startswith(name_partial)
         ]
 
     if len(matches) == 1:

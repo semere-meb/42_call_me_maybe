@@ -1,9 +1,9 @@
-from colorama import Fore
 import enum
 import re
 from typing import Callable, Pattern, TypedDict
 
 import numpy as np
+from colorama import Fore
 from numpy.typing import NDArray
 
 from src.errors import AppError
@@ -181,7 +181,8 @@ class Schema:
                 continue
             token_text = self.model.vocab[token_id]["decoded"]
             print(
-                f"\ttoken: {Fore.YELLOW}{repr(token_text):15.15}{Fore.RESET}, state: {Fore.YELLOW}{self.state:20.20}{Fore.RESET}",
+                f"\ttoken: {Fore.YELLOW}{repr(token_text):15.15}{Fore.RESET},\
+                 state: {Fore.YELLOW}{self.state:20.20}{Fore.RESET}",
                 end="",
             )
             for validator in validators:

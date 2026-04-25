@@ -1,6 +1,7 @@
 import sys
 
 from colorama import Fore
+
 from src.decoder import run_prompt
 from src.errors import AppError
 from src.io_utils import flush_results, get_definitions, get_files, get_prompts
