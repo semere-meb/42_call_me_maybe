@@ -28,7 +28,7 @@ def main() -> None:
         model = ModelWrapper(args.model)
 
         results_all = []
-        for prompt in prompts[7:9]:
+        for prompt in prompts:
             print(f"prompt: {Fore.GREEN}{repr(prompt.prompt)}{Fore.RESET}")
             result = run_prompt(prompt, model, definitions)
             results_all.append(result)

@@ -188,8 +188,8 @@ class Schema:
                 continue
             token_text = self.model.vocab[token_id]["decoded"]
             print(
-                f"\ttoken: {Fore.YELLOW}{repr(token_text):15.15}{Fore.RESET},\
-                 state: {Fore.YELLOW}{self.state:20.20}{Fore.RESET}",
+                f"\ttoken: {Fore.YELLOW}{repr(token_text):15.15}{Fore.RESET},"
+                f"state: {Fore.YELLOW}{self.state:20.20}{Fore.RESET}",
                 end="",
             )
 

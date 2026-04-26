@@ -31,36 +31,14 @@ def run_prompt(
       : The fully constructed object.
 
     """
-    template = Template(f"""
-    You are a function calling assistant. Given a user request, select the
-    appropriate function and extract the arguments.
 
-    Available functions:
-    [{", ".join([definition.raw for definition in definitions])}]
+    matched_def = get_definition(model, definitions, prompt.prompt)
 
-    Output JSON with keys: name, parameters.
-
-    User request: "$request"
-
-    Answer:""")
-
-    request = template.substitute(request=prompt.prompt)
-
-    function_idx = get_function(request, definitions, model)
-    res_dict = {"name": definitions[function_idx].name}
-    name_additions = json.dumps(res_dict)[:-1]
-
-    param_dict = {
-        param: definitions[function_idx].parameters[param].type
-        for param in definitions[function_idx].parameters
-        if not param.startswith("__")
-    }
-
-    params = get_parameters(request + name_additions, param_dict, model)
+    params = get_parameters(model, matched_def, prompt.prompt)
 
     res = {
         "prompt": prompt.prompt,
-        "name": definitions[function_idx].name,
+        "name": matched_def.name,
         "parameters": params,
     }
     print(f"JSON: {Fore.MAGENTA}{json.dumps(res, indent=4)}{Fore.RESET}")
@@ -68,12 +46,26 @@ def run_prompt(
     return res
 
 
-def get_function(
-    request: str,
-    definitions: list[Definition],
-    model: ModelWrapper,
-) -> int:
-    name_request = request + '{"name": "'
+def get_definition(
+    model: ModelWrapper, definitions: list[Definition], prompt: str
+) -> Definition:
+    template = Template('''
+    You are a function calling assistant. Given the following list of function
+    definitions and a user request, select the the name of the appropriate
+    function to use.
+
+    Available functions: [$definitions]
+
+    User request: "$prompt"
+
+    Output JSON with key: "name".
+
+    Answer: {"name": "''')
+
+    name_request = template.substitute(
+        definitions=", ".join(definition.raw for definition in definitions),
+        prompt=prompt,
+    )
 
     name_partial = ""
     matches = list(range(len(definitions)))
@@ -112,13 +104,11 @@ def get_function(
     else:
         raise AppError("No match found.")
 
-    return function_idx
+    return definitions[function_idx]
 
 
 def get_parameters(
-    request: str,
-    params: dict[str, str],
-    model: ModelWrapper,
+    model: ModelWrapper, definition: Definition, prompt: str
 ) -> dict[str, Any]:
     """
 
@@ -138,17 +128,38 @@ def get_parameters(
 
 
     """
-    param_values: dict[str, float | int | bool | str | None] = {}
-    param_request = request + ', "parameters": {'
+    template = Template("""
+    You are a function calling assistant. Given the following function
+    definition and a user request, select and extract the parameter values from
+    the user request according to the function definition's "parameter" object.
 
-    for key, key_type in params.items():
+    Function definition: $definition
+
+    User request: $prompt
+
+    Output JSON with keys: name, value.
+
+    Answer: {""")
+    param_request = template.substitute(
+        definition=definition.raw,
+        prompt=prompt,
+    )
+
+    param_dict = {
+        param: definition.parameters[param].type
+        for param in definition.parameters
+        if not param.startswith("__")
+    }
+    param_values: dict[str, float | int | bool | str | None] = {}
+
+    for key, key_type in param_dict.items():
         print(f"Parameter: {Fore.BLUE}{repr(key)}{Fore.RESET}")
         param_request += f'"{key}": '
 
         init_state = States.START
-        # if key_type == "string":
-        #     param_request += '"'
-        #     init_state = States.STR
+        if key_type == "string":
+            param_request += '"'
+            init_state = States.STR
 
         schema = Schema(model, init_state)
         val = schema.get_next_val(param_request)
