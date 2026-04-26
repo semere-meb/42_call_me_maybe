@@ -1,11 +1,12 @@
 SRC_DIR = src
-SRC = $(SRC_DIR)/*.py
 STUBS_DIR = stubs
+TEST_DIR = tests
 
+SRC = $(SRC_DIR)/*.py
 VENV = .venv
 
 run: install
-	uv run python -m src
+	uv run python -m $(SRC_DIR)
 
 install: $(VENV)
 
@@ -43,7 +44,7 @@ test: $(VENV)
 	uv run pytest
 
 format:
-	uvx ruff format $(SRC) $(STUB_DIR)
+	uvx ruff format $(SRC) $(STUB_DIR) $(TEST_DIR)
 
 debug: $(VENV)
 	uv run python -m pdb -m $(SRC_DIR)
