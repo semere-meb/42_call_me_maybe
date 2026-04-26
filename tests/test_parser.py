@@ -37,13 +37,21 @@ def test_custom_model(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_long_flags(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(sys, "argv", [
-        "prog",
-        "--input", "a.json",
-        "--output", "b.json",
-        "--functions_definition", "c.json",
-        "--model", "some/model",
-    ])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "--input",
+            "a.json",
+            "--output",
+            "b.json",
+            "--functions_definition",
+            "c.json",
+            "--model",
+            "some/model",
+        ],
+    )
     args = parse_args()
     assert args.input == "a.json"
     assert args.output == "b.json"

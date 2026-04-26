@@ -146,7 +146,9 @@ def test_get_definitions_invalid_json_raises(tmp_path: Path) -> None:
 
 def test_get_definitions_malformed_entry_raises(tmp_path: Path) -> None:
     f = tmp_path / "defs.json"
-    f.write_text(json.dumps([{"name": "fn_no_params"}]))  # missing required fields
+    f.write_text(
+        json.dumps([{"name": "fn_no_params"}])
+    )  # missing required fields
     with pytest.raises(AppError, match="Malformed"):
         get_definitions(f)
 
@@ -190,7 +192,10 @@ def test_get_definitions_private_parameters_accepted(tmp_path: Path) -> None:
     """Parameters prefixed with __ are valid in pydantic; decoder.py filters them."""
     d = {
         **_VALID_DEF,
-        "parameters": {"a": {"type": "number"}, "__hidden": {"type": "string"}},
+        "parameters": {
+            "a": {"type": "number"},
+            "__hidden": {"type": "string"},
+        },
     }
     f = tmp_path / "defs.json"
     f.write_text(json.dumps([d]))
@@ -233,7 +238,9 @@ def test_flush_results_overwrites_existing(tmp_path: Path) -> None:
 # ── get_files ────────────────────────────────────────────────────────────────
 
 
-def _args(tmp_path: Path, *, input_exists: bool = True, def_exists: bool = True) -> Namespace:
+def _args(
+    tmp_path: Path, *, input_exists: bool = True, def_exists: bool = True
+) -> Namespace:
     input_f = tmp_path / "input.json"
     def_f = tmp_path / "defs.json"
     if input_exists:

@@ -50,7 +50,9 @@ def test_string_multi_token() -> None:
         2: {"raw": "bar", "decoded": "bar"},
         3: {"raw": '"', "decoded": '"'},
     }
-    schema = Schema(_MockModel(vocab, [{1: 1.0}, {2: 1.0}, {3: 1.0}]), States.STR)  # type: ignore[arg-type]
+    schema = Schema(
+        _MockModel(vocab, [{1: 1.0}, {2: 1.0}, {3: 1.0}]), States.STR
+    )  # type: ignore[arg-type]
     assert schema.get_next_val("") == "foobar"
 
 
@@ -70,7 +72,9 @@ def test_string_started_from_start_state() -> None:
         2: {"raw": "hi", "decoded": "hi"},
         3: {"raw": '"}', "decoded": '"}'},
     }
-    schema = Schema(_MockModel(vocab, [{1: 1.0}, {2: 1.0}, {3: 1.0}]), States.START)  # type: ignore[arg-type]
+    schema = Schema(
+        _MockModel(vocab, [{1: 1.0}, {2: 1.0}, {3: 1.0}]), States.START
+    )  # type: ignore[arg-type]
     assert schema.get_next_val("") == "hi"
 
 
@@ -101,7 +105,9 @@ def test_split_content_then_backslash() -> None:
         2: {"raw": "U", "decoded": "U"},
         3: {"raw": '",', "decoded": '",'},
     }
-    schema = Schema(_MockModel(vocab, [{1: 1.0}, {2: 1.0}, {3: 1.0}]), States.STR)  # type: ignore[arg-type]
+    schema = Schema(
+        _MockModel(vocab, [{1: 1.0}, {2: 1.0}, {3: 1.0}]), States.STR
+    )  # type: ignore[arg-type]
     assert schema.get_next_val("") == ":\\U"
 
 
