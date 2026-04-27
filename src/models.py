@@ -14,7 +14,6 @@ class Definition(BaseModel):
     description: str
     parameters: dict[str, Parameter]
     returns: Parameter
-    raw: str = ""
 
 
 class Prompt(BaseModel):

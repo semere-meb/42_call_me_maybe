@@ -1,6 +1,7 @@
 import sys
 
 from colorama import Fore
+from dotenv import load_dotenv
 
 from src.decoder import run_prompt
 from src.errors import AppError
@@ -18,6 +19,7 @@ def main() -> None:
     """
 
     args = parse_args()
+    load_dotenv()
 
     try:
         definition_path, input_path, output_path = get_files(args)

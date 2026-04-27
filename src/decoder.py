@@ -41,7 +41,7 @@ def run_prompt(
         "name": matched_def.name,
         "parameters": params,
     }
-    print(f"JSON: {Fore.MAGENTA}{json.dumps(res, indent=4)}{Fore.RESET}")
+    print(f"JSON:\n{Fore.MAGENTA}{json.dumps(res, indent=4)}{Fore.RESET}")
     print("=" * 50)
     return res
 
@@ -54,16 +54,29 @@ def get_definition(
     definitions and a user request, select the the name of the appropriate
     function to use.
 
-    Available functions: [$definitions]
+    Function definitions:
+    <definitions>
+    [
+    $definitions
+    ]
+    </definitions>
 
-    User request: "$prompt"
+    User request:
+    <prompt>
+    "$prompt"
+    </prompt>
 
     Output JSON with key: "name".
 
-    Answer: {"name": "''')
+    Answer:
+    <JSON>
+    {"name": "''')
 
     name_request = template.substitute(
-        definitions=", ".join(definition.raw for definition in definitions),
+        definitions=", ".join(
+            Definition.model_dump_json(definition)
+            for definition in definitions
+        ),
         prompt=prompt,
     )
 
@@ -130,17 +143,31 @@ def get_parameters(
     """
     template = Template("""
     You are a function calling assistant. Given the following function
-    definition and a user request, extract the COMPLETE and EXACT parameter
-    values from the user request.
+    definition and a user request, extract the COMPLETE and EXACT ARGUMENTS
+    (NOT THE RESULT) from the user request to complete the JSON object.
 
-    Function definition: $definition
+    Function definition:
+    <definition>
+    $definition
+    </definition>
 
-    User request: <request>$prompt</request>
+    User request:
+    <request>
+    $prompt
+    </request>
 
-    Answer: {""")
+    Answer:
+    <JSON>
+    {
+        "name": "$name",
+        "description": "$description",
+        "parameters": {
+            """)
     param_request = template.substitute(
-        definition=definition.raw,
+        definition=definition.model_dump_json(),
         prompt=prompt,
+        name=definition.name,
+        description=definition.description,
     )
 
     param_dict = {

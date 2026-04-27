@@ -123,7 +123,6 @@ def get_definitions(definition_path: Path) -> list[Definition]:
                         f"Malformed function definition: {definition_dict}"
                     ) from e
                 else:
-                    definition.raw = json.dumps(definition_dict)
                     definitions.append(definition)
             if not definitions:
                 raise AppError("No function definitions were provided")

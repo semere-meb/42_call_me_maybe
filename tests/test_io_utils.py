@@ -9,8 +9,7 @@ import pytest
 from src.errors import AppError
 from src.io_utils import flush_results, get_definitions, get_files, get_prompts
 
-
-# ── get_prompts ───────────────────────────────────────────────────────────────
+# ── get_prompts ──────────────────────────────────────────────────────────────
 
 
 def test_get_prompts_valid(tmp_path: Path) -> None:
@@ -108,13 +107,6 @@ def test_get_definitions_valid(tmp_path: Path) -> None:
     defs = get_definitions(f)
     assert len(defs) == 1
     assert defs[0].name == "fn_add"
-
-
-def test_get_definitions_raw_field_populated(tmp_path: Path) -> None:
-    f = tmp_path / "defs.json"
-    f.write_text(json.dumps([_VALID_DEF]))
-    defs = get_definitions(f)
-    assert defs[0].raw == json.dumps(_VALID_DEF)
 
 
 def test_get_definitions_multiple(tmp_path: Path) -> None:

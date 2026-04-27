@@ -9,6 +9,7 @@ dependencies = [
     "llm-sdk",
     "numpy>=2.2.6",
     "pydantic>=2.12.5",
+    "python-dotenv>=1.2.2",
 ]
 
 [tool.uv.sources]
