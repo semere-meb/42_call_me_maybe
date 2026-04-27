@@ -35,7 +35,8 @@ def run_prompt(
     try:
         matched_def = get_definition(model, definitions, prompt.prompt)
         print(
-            f"Definition:\n{Fore.MAGENTA}{matched_def.model_dump_json(indent=4)}{Fore.RESET}"
+            "Definition:\n{Fore.MAGENTA}"
+            f"{matched_def.model_dump_json(indent=4)}{Fore.RESET}"
         )
 
         params = get_parameters(model, matched_def, prompt.prompt)
