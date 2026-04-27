@@ -32,18 +32,25 @@ def run_prompt(
 
     """
 
-    matched_def = get_definition(model, definitions, prompt.prompt)
+    try:
+        matched_def = get_definition(model, definitions, prompt.prompt)
+        print(
+            f"Definition:\n{Fore.MAGENTA}{matched_def.model_dump_json(indent=4)}{Fore.RESET}"
+        )
 
-    params = get_parameters(model, matched_def, prompt.prompt)
+        params = get_parameters(model, matched_def, prompt.prompt)
 
-    res = {
-        "prompt": prompt.prompt,
-        "name": matched_def.name,
-        "parameters": params,
-    }
-    print(f"JSON:\n{Fore.MAGENTA}{json.dumps(res, indent=4)}{Fore.RESET}")
-    print("=" * 50)
-    return res
+        res = {
+            "prompt": prompt.prompt,
+            "name": matched_def.name,
+            "parameters": params,
+        }
+        print(f"JSON:\n{Fore.MAGENTA}{json.dumps(res, indent=4)}{Fore.RESET}")
+        print("=" * 50)
+        return res
+    except AppError:
+        print(f"{Fore.RED}Did not match any function definition.")
+        return {}
 
 
 def get_definition(
