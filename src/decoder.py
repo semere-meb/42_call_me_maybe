@@ -8,7 +8,7 @@ from colorama import Fore
 from src.errors import AppError
 from src.model_wrapper import ModelWrapper
 from src.models import Definition, Prompt
-from src.schema import Schema, States
+from src.schema import Schema
 
 
 def run_prompt(
@@ -130,14 +130,12 @@ def get_parameters(
     """
     template = Template("""
     You are a function calling assistant. Given the following function
-    definition and a user request, select and extract the parameter values from
-    the user request according to the function definition's "parameter" object.
+    definition and a user request, extract the COMPLETE and EXACT parameter
+    values from the user request.
 
     Function definition: $definition
 
-    User request: $prompt
-
-    Output JSON with keys: name, value.
+    User request: <request>$prompt</request>
 
     Answer: {""")
     param_request = template.substitute(
@@ -156,12 +154,7 @@ def get_parameters(
         print(f"Parameter: {Fore.BLUE}{repr(key)}{Fore.RESET}")
         param_request += f'"{key}": '
 
-        init_state = States.START
-        if key_type == "string":
-            param_request += '"'
-            init_state = States.STR
-
-        schema = Schema(model, init_state)
+        schema = Schema(model, key_type=key_type)
         val = schema.get_next_val(param_request)
         print(f"Value: {Fore.BLUE}{repr(val)}{Fore.RESET}")
 
@@ -176,10 +169,13 @@ def get_parameters(
             elif key_type == "boolean":
                 val_obj = val == "true"
             else:
-                val_obj = val
+                val_obj = val.replace('\\"', '"').replace("\\\\", "\\")
         except ValueError:
             val_obj = None
 
         param_values[key] = val_obj
-        param_request += val + ", "
+        if key_type == "string":
+            param_request += f'"{val}", '
+        else:
+            param_request += val + ", "
     return param_values

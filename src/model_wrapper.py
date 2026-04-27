@@ -1,4 +1,5 @@
 import json
+from functools import lru_cache
 from json import JSONDecodeError
 from typing import cast
 
@@ -69,6 +70,7 @@ class ModelWrapper:
                 f"Error: The text {text} couldn't be encoded by the model. {e}"
             ) from e
 
+    @lru_cache  # noqa: B019
     def decode(self, token_id: int) -> str:
         if token_id not in self.vocab:
             raise ModelError(f"Error: {token_id} is not in the model vocab.")

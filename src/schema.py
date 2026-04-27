@@ -130,15 +130,32 @@ transitions: dict[States, StateTransition] = {
 
 
 class Schema:
+    model: ModelWrapper
+    transitions: dict[States, StateTransition]
+    state: States
+
     def __init__(
         self,
         model: ModelWrapper,
         init_state: States = States.START,
+        key_type: str = "unknown",
     ) -> None:
         self.model = model
         self.state = init_state
         self.token_count = 0
-        self.transitions: dict[States, StateTransition] = transitions
+
+        if key_type == "string":
+            self.transitions = {
+                **transitions,
+                States.START: {
+                    "valid_tokens": [patterns["quote"]],
+                    "fn": lambda pattern: {
+                        patterns["quote"]: States.STR,
+                    }.get(pattern, States.ERROR),
+                },
+            }
+        else:
+            self.transitions = transitions
 
     def get_next_val(self, string: str, max_token: int = 30) -> str:
 
