@@ -23,12 +23,12 @@ def run_prompt(
     return a fully constructed object.
 
     Args:
-      prompt: Prompt: The prompt.
-      model: The model used to run the prompts.
-      definitions: The list of function definitions.
+      model: Prompt: The model used to run the prompts
+      definitions: list[Definitions]: The list of function definitions
+      model: ModelWrapper: The model used to run the prompt.
 
     Returns:
-      : The fully constructed object.
+      dict[str, Any]: The fully constructed object.
 
     """
 
@@ -57,6 +57,22 @@ def run_prompt(
 def get_definition(
     model: ModelWrapper, definitions: list[Definition], prompt: str
 ) -> Definition:
+    """
+
+    Selects the correct function definition to use for the given prompt by
+    narrowing down from the set of possible definitions on each token generated
+    by the model, by masking off invalid results on the way.
+
+    Args:
+      model: ModelWrapper: The model used to process the request.
+      definitions: list[Definition]: A list of possible function definitions.
+      prompt: str: The user request/prompt.
+
+    Returns:
+        Definition: The selected function to use.
+
+    """
+
     template = Template('''
     You are a function calling assistant. Given the following list of function
     definitions and a user request, select the the name of the appropriate
@@ -138,17 +154,18 @@ def get_parameters(
 
     Args:
       request: str : The prompt string.
-      params: dict[str, str] : A map of the name of a key to its 'type' in
-        definition.
-      model: ModelWrapper : The model used to run the prompt.
-      vocab: dict[int, dict[str, str]] : The vocabulary lookup table.
+
+    Args:
+      model: ModelWrapper: The model used.
+      definition: Definition: The reference function definition.
+      prompt: str: The user request.
 
     Returns:
       : dict[str, Any]: The constructed object representing the parameters
-        field.
-
+          field.
 
     """
+
     template = Template("""
     You are a function calling assistant. Given the following function
     definition and a user request, extract the COMPLETE and EXACT ARGUMENTS

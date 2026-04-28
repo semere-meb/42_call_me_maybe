@@ -22,10 +22,10 @@ dev = [
 [tool.uv.sources]
 llm-sdk = { path = "llm_sdk", editable=true}
 
-[tool.pytest.ini_options]                                                                                                                                                                    
-pythonpath = ["."]  
+[tool.pytest.ini_options]
+pythonpath = ["."]
 
-[tool.mypy]                                                                                            
+[tool.mypy]
 plugins = ["pydantic.mypy"]
 mypy_path = "stubs"
 

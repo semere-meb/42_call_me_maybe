@@ -11,6 +11,12 @@ from src.model_wrapper import ModelWrapper
 
 
 class States(enum.Enum):
+    """
+
+    Represents a state in the Finite Automata JSON schema, start to END or
+
+    """
+
     START = "START"
     STR = "STR"
     STR_ESC = "STR_ESC"
@@ -40,6 +46,13 @@ patterns: dict[str, Pattern[str]] = {
 
 
 class StateTransition(TypedDict):
+    """
+
+    Defines a state, its valid token patterns and a function which routes the
+    FA to the next state based on the token pattern.
+
+    """
+
     valid_tokens: list[Pattern[str]]
     fn: Callable[[Pattern[str]], States]
 
@@ -130,6 +143,13 @@ transitions: dict[States, StateTransition] = {
 
 
 class Schema:
+    """
+
+    The JSON schema representing the current state of the FA and a method to
+    grab the value while it is in an acceptable state(s).
+
+    """
+
     model: ModelWrapper
     transitions: dict[States, StateTransition]
     state: States
@@ -158,6 +178,23 @@ class Schema:
             self.transitions = transitions
 
     def get_next_val(self, string: str, max_token: int = 30) -> str:
+        """
+
+        returns a string (often multiple tokens) that take the FA to a
+        acceptable terminating state. Starts next_valid_token with a top-k
+        (k=20) tokens to focus on the top candidates.
+
+        Args:
+          string: str: The regressive request string the will eventually
+              include the next val to grab yet another token
+          max_token: int:  (Default value = 30) : upper bound to prevent
+              infinite loop when a model goes astray.
+
+        Returns:
+          str: The next value for a parameter key,
+              a string to that takes the FA to a valid END state.
+
+        """
 
         input_ids = self.model.encode(string)
 
@@ -200,6 +237,22 @@ class Schema:
         patterns: list[Pattern[str]],
         transition_fn: Callable[[Pattern[str]], States],
     ) -> tuple[int, str] | None:
+        """
+
+        Selects the first token, from the top candidates top to down, that will
+        bring the FA to a valid state.
+
+        Args:
+          rank: NDArray[np.intp]: The top 20 candidates.
+          patterns: list[Pattern[str]]: The set of valid tokens for the
+              current state.
+          transition_fn: Callable[[Pattern[str]], States]: The routing function
+              to transition to the next state.
+
+        Returns: The token_id and the effective(valid part) of the decoded
+            token.
+
+        """
         for token_id in rank:
             if token_id not in self.model.vocab:
                 continue

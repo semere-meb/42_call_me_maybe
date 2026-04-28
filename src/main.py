@@ -15,7 +15,6 @@ def main() -> None:
 
     Orchasterate everything from parsing args to dumping the json result
 
-
     """
 
     args = parse_args()

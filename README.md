@@ -29,7 +29,7 @@ The model used by default is [Qwen/Qwen3-0.6B](https://huggingface.co/Qwen/Qwen3
 ### Requirements
 
 - Python 3.10 or later
-- [uv](https://docs.astral.sh/uv/) package manager
+- make - for automated targets
 
 ### Installation
 
@@ -149,11 +149,16 @@ NBR_PRE_DOT → (digit)          → NBR_PRE_DOT
 NBR_POST_DOT → (digit)          → NBR_POST_DOT
              → (nbr_terminator) → END
 ```
+*The schema's START state starts with a limited set of valid tokens if the key type (expected type) is string. This would help make the model draw to strings and reject anything else.*
+
+![scalar json value schema](docs/scalar_json_value_schema.png)
 
 At each step, the top-20 tokens by logit score are ranked. For each candidate token the automaton attempts a match:
 
 1. **Full match** — the entire token matches a validator for the current state. The automaton transitions and the token is accepted.
 2. **Split match** — the token straddles a state boundary (e.g., `)"` contains content `)` fused with the string terminator `"`). The automaton scans from the longest prefix down to find a split position where the prefix matches the current state and the suffix matches the resulting next state. Only the content portion is added to the output value.
+
+Each Token is matched against a valid token pattern by graduallly reducing the characters to the first characters - from full match to split match.
 
 If no split position works, the token is skipped and the next ranked token is tried.
 
